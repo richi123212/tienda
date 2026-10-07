@@ -37,24 +37,53 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isGitGuideOpen, setIsGitGuideOpen] = useState(false);
 
-  // Cargar de Supabase si está configurado
+  // Cargar y sincronizar con Supabase en tiempo real
   useEffect(() => {
     if (isSupabaseConfigured && supabase) {
-      async function fetchFromSupabase() {
+      async function syncSupabase() {
         try {
           const { data, error } = await supabase
             .from('productos')
             .select('*')
             .order('creado_en', { ascending: false });
 
-          if (!error && data && data.length > 0) {
-            setProducts(data);
+          if (!error && data) {
+            if (data.length > 0) {
+              setProducts(data);
+            } else {
+              // Si la base de datos en Supabase está vacía, sembramos los productos iniciales
+              const seedData = INITIAL_PRODUCTS.map(({ id, ...rest }) => rest);
+              const { data: seeded } = await supabase
+                .from('productos')
+                .insert(seedData)
+                .select();
+              if (seeded && seeded.length > 0) {
+                setProducts(seeded);
+              }
+            }
           }
         } catch (err) {
-          console.warn('Supabase activo pero sin tablas aún, usando local:', err);
+          console.warn('Error sincronizando con Supabase, usando estado local:', err);
         }
       }
-      fetchFromSupabase();
+
+      syncSupabase();
+
+      // Suscripción en tiempo real: si agregas desde el celular, se actualiza en la PC al instante
+      const channel = supabase
+        .channel('productos_realtime')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'productos' },
+          () => {
+            syncSupabase();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, []);
 
