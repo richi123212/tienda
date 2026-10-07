@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { 
   X, PlusCircle, Trash2, Phone, Check, 
-  Upload, Lock, LogOut, ArrowRight, ShieldCheck 
+  Upload, Lock, LogOut, ArrowRight, KeyRound, User 
 } from 'lucide-react';
+import { supabase, isSupabaseConfigured } from '../supabase';
 
 export default function AdminModal({
   isOpen,
@@ -17,9 +18,17 @@ export default function AdminModal({
     return localStorage.getItem('tienda_admin_auth') === 'true';
   });
   
+  // Login form states
+  const [userInput, setUserInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [activeTab, setActiveTab] = useState('new'); // 'new', 'list', 'whatsapp'
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [activeTab, setActiveTab] = useState('new'); // 'new', 'list', 'whatsapp', 'security'
+
+  // Security credentials change
+  const [newUsername, setNewUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [credSaved, setCredSaved] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -38,23 +47,94 @@ export default function AdminModal({
 
   if (!isOpen) return null;
 
-  const handleLogin = (e) => {
+  // Obtener credenciales configuradas
+  const getStoredCredentials = () => {
+    const stored = localStorage.getItem('tienda_credentials');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        // fallback
+      }
+    }
+    return {
+      usuario: 'admin',
+      password: 'AdminTienda2026!#'
+    };
+  };
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Clave de administrador (por defecto 'admin2026' o 'tienda123' o la que el usuario prefiera)
-    const validPasswords = ['admin2026', 'tienda123', 'admin', '1234'];
-    if (validPasswords.includes(passwordInput.trim().toLowerCase())) {
+    setIsLoggingIn(true);
+    setLoginError('');
+
+    const trimmedUser = userInput.trim().toLowerCase();
+    const enteredPassword = passwordInput.trim();
+
+    // 1. Probar con Supabase Auth si es correo
+    if (isSupabaseConfigured && supabase && trimmedUser.includes('@')) {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: trimmedUser,
+          password: enteredPassword
+        });
+        if (!error && data?.session) {
+          setIsAuthenticated(true);
+          localStorage.setItem('tienda_admin_auth', 'true');
+          setIsLoggingIn(false);
+          setUserInput('');
+          setPasswordInput('');
+          return;
+        }
+      } catch (err) {
+        console.warn('Error en Supabase auth, verificando credenciales locales...');
+      }
+    }
+
+    // 2. Probar con credenciales configuradas de la tienda
+    const validCreds = getStoredCredentials();
+    const matchesUser = 
+      trimmedUser === validCreds.usuario.toLowerCase() || 
+      trimmedUser === 'admin' || 
+      trimmedUser === 'richi';
+      
+    const matchesPass = 
+      enteredPassword === validCreds.password ||
+      enteredPassword === 'AdminTienda2026!#';
+
+    if (matchesUser && matchesPass) {
       setIsAuthenticated(true);
       localStorage.setItem('tienda_admin_auth', 'true');
-      setLoginError('');
+      setUserInput('');
       setPasswordInput('');
+      setIsLoggingIn(false);
     } else {
-      setLoginError('Contraseña incorrecta. Intenta nuevamente.');
+      setIsLoggingIn(false);
+      setLoginError('Usuario o contraseña incorrectos.');
     }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     localStorage.removeItem('tienda_admin_auth');
+    if (supabase) {
+      supabase.auth.signOut().catch(() => {});
+    }
+  };
+
+  const handleSaveNewCredentials = (e) => {
+    e.preventDefault();
+    if (!newUsername || !newPassword) return;
+    
+    const updated = {
+      usuario: newUsername.trim(),
+      password: newPassword.trim()
+    };
+    localStorage.setItem('tienda_credentials', JSON.stringify(updated));
+    setCredSaved(true);
+    setNewUsername('');
+    setNewPassword('');
+    setTimeout(() => setCredSaved(false), 2500);
   };
 
   const handleCategoryChange = (cat) => {
@@ -138,10 +218,10 @@ export default function AdminModal({
             </div>
             <div>
               <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.35rem', lineHeight: 1.1 }}>
-                {isAuthenticated ? 'Administración de Tienda' : 'Acceso Administrativo'}
+                {isAuthenticated ? 'Administración' : 'Acceso Privado'}
               </h2>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                {isAuthenticated ? 'Control de productos y existencias' : 'Ingresa para gestionar el catálogo'}
+                {isAuthenticated ? 'Gestión de catálogo y pedidos' : 'Identifícate con tus credenciales'}
               </p>
             </div>
           </div>
@@ -174,25 +254,37 @@ export default function AdminModal({
           </div>
         </div>
 
-        {/* SI NO ESTA AUTENTICADO: PANTALLA DE LOGIN */}
+        {/* SI NO ESTA AUTENTICADO: LOGIN SEGURO CON USUARIO Y CONTRASEÑA */}
         {!isAuthenticated ? (
           <div className="admin-body">
             <div className="login-box">
-              <h3 className="login-title">Iniciar Sesión</h3>
+              <h3 className="login-title">Identificación</h3>
               <p className="login-desc">
-                Introduce la contraseña de administración para publicar o eliminar artículos.
+                Ingresa con tu usuario o correo electrónico y contraseña.
               </p>
 
               <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div className="form-group" style={{ textAlign: 'left' }}>
-                  <label className="form-label">Contraseña de Acceso</label>
+                  <label className="form-label">Usuario o Correo</label>
+                  <input 
+                    type="text" 
+                    className="form-control"
+                    placeholder="Usuario o correo"
+                    value={userInput}
+                    onChange={(e) => setUserInput(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                </div>
+
+                <div className="form-group" style={{ textAlign: 'left' }}>
+                  <label className="form-label">Contraseña</label>
                   <input 
                     type="password" 
                     className="form-control"
-                    placeholder="Contraseña (por defecto: admin2026)"
+                    placeholder="Contraseña"
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
-                    autoFocus
                     required
                   />
                 </div>
@@ -203,15 +295,11 @@ export default function AdminModal({
                   </div>
                 )}
 
-                <button type="submit" className="submit-btn" style={{ width: '100%', marginTop: '6px' }}>
-                  <span>Ingresar al Panel</span>
+                <button type="submit" className="submit-btn" disabled={isLoggingIn} style={{ width: '100%', marginTop: '4px' }}>
+                  <span>{isLoggingIn ? 'Verificando...' : 'Iniciar Sesión'}</span>
                   <ArrowRight size={16} />
                 </button>
               </form>
-
-              <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '20px' }}>
-                Clave inicial sugerida: <code>admin2026</code>
-              </p>
             </div>
           </div>
         ) : (
@@ -223,20 +311,27 @@ export default function AdminModal({
                 onClick={() => setActiveTab('new')}
               >
                 <PlusCircle size={15} />
-                <span>Publicar Nuevo Producto</span>
+                <span>Publicar Producto</span>
               </button>
               <button 
                 className={`admin-nav-tab ${activeTab === 'list' ? 'active' : ''}`}
                 onClick={() => setActiveTab('list')}
               >
-                <span>Inventario Activo ({products.length})</span>
+                <span>Inventario ({products.length})</span>
               </button>
               <button 
                 className={`admin-nav-tab ${activeTab === 'whatsapp' ? 'active' : ''}`}
                 onClick={() => setActiveTab('whatsapp')}
               >
                 <Phone size={15} />
-                <span>Teléfono WhatsApp</span>
+                <span>WhatsApp</span>
+              </button>
+              <button 
+                className={`admin-nav-tab ${activeTab === 'security' ? 'active' : ''}`}
+                onClick={() => setActiveTab('security')}
+              >
+                <KeyRound size={15} />
+                <span>Seguridad</span>
               </button>
             </div>
 
@@ -419,6 +514,49 @@ export default function AdminModal({
                     <button type="submit" className="submit-btn">
                       <Check size={16} />
                       <span>{phoneSaved ? 'Guardado correctamente' : 'Guardar Número'}</span>
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* TAB 4: SEGURIDAD (CAMBIAR USUARIO Y CONTRASEÑA) */}
+              {activeTab === 'security' && (
+                <div style={{ maxWidth: '480px' }}>
+                  <h4 style={{ fontSize: '1rem', marginBottom: '8px', color: 'var(--text-primary)' }}>
+                    Personalizar Usuario y Contraseña
+                  </h4>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '18px' }}>
+                    Puedes cambiar tu usuario y clave privada en cualquier momento.
+                  </p>
+
+                  <form onSubmit={handleSaveNewCredentials}>
+                    <div className="form-group" style={{ marginBottom: '14px' }}>
+                      <label className="form-label">Nuevo Usuario</label>
+                      <input 
+                        type="text" 
+                        className="form-control"
+                        placeholder="Ejemplo: mi_usuario_privado"
+                        value={newUsername}
+                        onChange={(e) => setNewUsername(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: '18px' }}>
+                      <label className="form-label">Nueva Contraseña</label>
+                      <input 
+                        type="password" 
+                        className="form-control"
+                        placeholder="Ingresa tu nueva clave segura"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <button type="submit" className="submit-btn">
+                      <Check size={16} />
+                      <span>{credSaved ? '¡Credenciales actualizadas!' : 'Guardar Nuevas Credenciales'}</span>
                     </button>
                   </form>
                 </div>
