@@ -3,11 +3,10 @@ import Header from './components/Header';
 import ProductCard from './components/ProductCard';
 import CartDrawer from './components/CartDrawer';
 import AdminModal from './components/AdminModal';
-import GitGuideModal from './components/GitGuideModal';
 import Footer from './components/Footer';
 import { INITIAL_PRODUCTS } from './data/initialProducts';
 import { supabase, isSupabaseConfigured } from './supabase';
-import { Search, Sparkles, Filter, PackageCheck, AlertCircle } from 'lucide-react';
+import { Search, AlertCircle } from 'lucide-react';
 
 const CATEGORIES = ['Todas', 'Comida', 'Ropa Mujer', 'Ropa Hombre', 'Lucha Libre'];
 
@@ -33,9 +32,8 @@ export default function App() {
   });
   const [isCartOpen, setIsCartOpen] = useState(false);
   
-  // Modales
+  // Modal Admin / Login
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isGitGuideOpen, setIsGitGuideOpen] = useState(false);
 
   // Cargar y sincronizar con Supabase en tiempo real
   useEffect(() => {
@@ -132,7 +130,6 @@ export default function App() {
   const handleAddProduct = async (newProduct, imageFile) => {
     let finalImageUrl = newProduct.imagen_url;
 
-    // Si Supabase está conectado y se subió archivo físico, enviarlo a Supabase Storage
     if (isSupabaseConfigured && supabase && imageFile) {
       try {
         const fileExt = imageFile.name.split('.').pop();
@@ -141,7 +138,10 @@ export default function App() {
 
         const { error: uploadError } = await supabase.storage
           .from('fotos-productos')
-          .upload(filePath, imageFile);
+          .upload(filePath, imageFile, {
+            contentType: imageFile.type,
+            upsert: false
+          });
 
         if (!uploadError) {
           const { data } = supabase.storage
@@ -158,17 +158,21 @@ export default function App() {
 
     const readyProduct = { ...newProduct, imagen_url: finalImageUrl };
 
-    // Si Supabase está configurado, guardar también en la tabla
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('productos').insert([{
+        const { data: insertedData, error: insertError } = await supabase.from('productos').insert([{
           nombre: readyProduct.nombre,
           precio: readyProduct.precio,
           categoria: readyProduct.categoria,
           descripcion: readyProduct.descripcion,
           tipo_envio: readyProduct.tipo_envio,
           imagen_url: readyProduct.imagen_url
-        }]);
+        }]).select();
+
+        if (!insertError && insertedData?.[0]) {
+          setProducts((prev) => [insertedData[0], ...prev]);
+          return;
+        }
       } catch (err) {
         console.error('Error guardando en Supabase DB:', err);
       }
@@ -212,39 +216,17 @@ export default function App() {
         cartCount={cartTotalItems}
         onOpenCart={() => setIsCartOpen(true)}
         onOpenAdmin={() => setIsAdminOpen(true)}
-        onOpenGitGuide={() => setIsGitGuideOpen(true)}
       />
 
-      {/* Hero Section */}
+      {/* Hero Section Limpio */}
       <section className="hero-banner">
-        <div className="hero-tag">
-          <Sparkles size={14} />
-          <span>Edición Especial 2026</span>
-        </div>
-
         <h2 className="hero-title">
           Colección de Moda & <em>Cocina Artesanal</em>
         </h2>
 
         <p className="hero-description">
-          Descubre platillos elaborados al momento, prendas de autor y artículos de lucha libre tradicional. 
-          Haz tu pedido con un solo clic y coordina tu entrega directa por WhatsApp.
+          Platillos preparados al momento, prendas de autor y artículos de lucha libre. Haz tu pedido directo por WhatsApp.
         </p>
-
-        <div className="hero-badges-strip">
-          <div className="trust-pill">
-            <PackageCheck size={14} color="var(--accent-gold)" />
-            <span>Alimentos: Envíos locales express</span>
-          </div>
-          <div className="trust-pill">
-            <PackageCheck size={14} color="var(--accent-gold)" />
-            <span>Ropa & Colección: Paquetería nacional</span>
-          </div>
-          <div className="trust-pill">
-            <PackageCheck size={14} color="var(--accent-gold)" />
-            <span>Pagos: SPEI o Efectivo</span>
-          </div>
-        </div>
       </section>
 
       {/* Filtros de Categorías y Buscador */}
@@ -310,7 +292,7 @@ export default function App() {
         onClearCart={handleClearCart}
       />
 
-      {/* Modal del Panel /admin */}
+      {/* Modal Admin con Login */}
       <AdminModal 
         isOpen={isAdminOpen}
         onClose={() => setIsAdminOpen(false)}
@@ -321,12 +303,6 @@ export default function App() {
         onSaveWhatsAppNumber={handleSaveWhatsAppNumber}
       />
 
-      {/* Modal Guía Git y Vercel */}
-      <GitGuideModal 
-        isOpen={isGitGuideOpen}
-        onClose={() => setIsGitGuideOpen(false)}
-      />
-
       {/* Pie de página */}
       <Footer 
         onSelectCategory={(cat) => {
@@ -335,7 +311,6 @@ export default function App() {
           if (el) el.scrollIntoView({ behavior: 'smooth' });
         }}
         onOpenAdmin={() => setIsAdminOpen(true)}
-        onOpenGitGuide={() => setIsGitGuideOpen(true)}
       />
     </div>
   );

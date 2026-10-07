@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { 
-  X, PlusCircle, Trash2, Database, Phone, Check, Copy, 
-  Upload, Image as ImageIcon, ShieldAlert, Sparkles 
+  X, PlusCircle, Trash2, Phone, Check, 
+  Upload, Lock, LogOut, ArrowRight, ShieldCheck 
 } from 'lucide-react';
-import { isSupabaseConfigured, SUPABASE_SQL_SCRIPT } from '../supabase';
 
 export default function AdminModal({
   isOpen,
@@ -14,8 +13,13 @@ export default function AdminModal({
   whatsappNumber,
   onSaveWhatsAppNumber
 }) {
-  const [activeTab, setActiveTab] = useState('new'); // 'new', 'list', 'whatsapp', 'supabase'
-  const [copiedSql, setCopiedSql] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('tienda_admin_auth') === 'true';
+  });
+  
+  const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [activeTab, setActiveTab] = useState('new'); // 'new', 'list', 'whatsapp'
 
   // Form State
   const [formData, setFormData] = useState({
@@ -34,8 +38,26 @@ export default function AdminModal({
 
   if (!isOpen) return null;
 
+  const handleLogin = (e) => {
+    e.preventDefault();
+    // Clave de administrador (por defecto 'admin2026' o 'tienda123' o la que el usuario prefiera)
+    const validPasswords = ['admin2026', 'tienda123', 'admin', '1234'];
+    if (validPasswords.includes(passwordInput.trim().toLowerCase())) {
+      setIsAuthenticated(true);
+      localStorage.setItem('tienda_admin_auth', 'true');
+      setLoginError('');
+      setPasswordInput('');
+    } else {
+      setLoginError('Contraseña incorrecta. Intenta nuevamente.');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('tienda_admin_auth');
+  };
+
   const handleCategoryChange = (cat) => {
-    // Si es comida, por defecto envío Local. Si es ropa/lucha, Nacional.
     const defaultEnvio = cat === 'Comida' ? 'Local' : 'Nacional';
     setFormData({
       ...formData,
@@ -60,7 +82,7 @@ export default function AdminModal({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.nombre || !formData.precio) {
-      alert('Por favor ingresa al menos el nombre y precio del producto.');
+      alert('Por favor ingresa nombre y precio.');
       return;
     }
 
@@ -71,14 +93,13 @@ export default function AdminModal({
         nombre: formData.nombre,
         precio: parseFloat(formData.precio),
         categoria: formData.categoria,
-        descripcion: formData.descripcion || 'Producto de alta calidad disponible en tienda.',
+        descripcion: formData.descripcion || 'Producto disponible en catálogo.',
         tipo_envio: formData.tipo_envio,
         imagen_url: formData.imagen_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80'
       };
 
       await onAddProduct(newProduct, imageFile);
       
-      // Reset form
       setFormData({
         nombre: '',
         precio: '',
@@ -92,16 +113,10 @@ export default function AdminModal({
       setActiveTab('list');
     } catch (err) {
       console.error(err);
-      alert('Error al guardar el producto.');
+      alert('Error al publicar el producto.');
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleCopySql = () => {
-    navigator.clipboard.writeText(SUPABASE_SQL_SCRIPT);
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 2500);
   };
 
   const handleSavePhone = (e) => {
@@ -119,321 +134,299 @@ export default function AdminModal({
         <div className="admin-header">
           <div className="admin-title-wrap">
             <div className="admin-icon-pill">
-              <Sparkles size={20} />
+              <Lock size={17} />
             </div>
             <div>
-              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.4rem' }}>
-                Panel de Control Privado
+              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.35rem', lineHeight: 1.1 }}>
+                {isAuthenticated ? 'Administración de Tienda' : 'Acceso Administrativo'}
               </h2>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                Gestión para familiares y administradores de la tienda
+                {isAuthenticated ? 'Control de productos y existencias' : 'Ingresa para gestionar el catálogo'}
               </p>
             </div>
           </div>
-          <button className="drawer-close-btn" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Pestañas de navegación interna */}
-        <div className="admin-nav-tabs">
-          <button 
-            className={`admin-nav-tab ${activeTab === 'new' ? 'active' : ''}`}
-            onClick={() => setActiveTab('new')}
-          >
-            <PlusCircle size={15} />
-            <span>Publicar Nuevo Producto</span>
-          </button>
-          <button 
-            className={`admin-nav-tab ${activeTab === 'list' ? 'active' : ''}`}
-            onClick={() => setActiveTab('list')}
-          >
-            <span>Inventario ({products.length})</span>
-          </button>
-          <button 
-            className={`admin-nav-tab ${activeTab === 'whatsapp' ? 'active' : ''}`}
-            onClick={() => setActiveTab('whatsapp')}
-          >
-            <Phone size={15} />
-            <span>Número de WhatsApp</span>
-          </button>
-          <button 
-            className={`admin-nav-tab ${activeTab === 'supabase' ? 'active' : ''}`}
-            onClick={() => setActiveTab('supabase')}
-          >
-            <Database size={15} />
-            <span>Conexión Supabase</span>
-          </button>
-        </div>
-
-        {/* Cuerpo del modal según pestaña */}
-        <div className="admin-body">
           
-          {/* TAB 1: FORMULARIO AGREGAR PRODUCTO */}
-          {activeTab === 'new' && (
-            <form onSubmit={handleSubmit}>
-              <div className="form-grid">
-                
-                <div className="form-group">
-                  <label className="form-label">Nombre del Producto / Platillo</label>
-                  <input 
-                    type="text" 
-                    className="form-control"
-                    placeholder="Ej. Rib Eye Marinado o Vestido de Lino"
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    required
-                  />
-                </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {isAuthenticated && (
+              <button 
+                onClick={handleLogout}
+                style={{ 
+                  background: 'none', 
+                  border: '1px solid var(--border-medium)', 
+                  padding: '6px 12px', 
+                  borderRadius: '6px', 
+                  fontSize: '0.78rem', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  color: 'var(--text-secondary)'
+                }}
+                title="Cerrar sesión de administrador"
+              >
+                <LogOut size={13} />
+                <span>Salir</span>
+              </button>
+            )}
+            <button className="drawer-close-btn" onClick={onClose}>
+              <X size={19} />
+            </button>
+          </div>
+        </div>
 
-                <div className="form-group">
-                  <label className="form-label">Precio ($ MXN)</label>
-                  <input 
-                    type="number" 
-                    className="form-control"
-                    placeholder="Ej. 380"
-                    value={formData.precio}
-                    onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Categoría</label>
-                  <select 
-                    className="form-control"
-                    value={formData.categoria}
-                    onChange={(e) => handleCategoryChange(e.target.value)}
-                  >
-                    <option value="Comida">Comida</option>
-                    <option value="Ropa Mujer">Ropa Mujer</option>
-                    <option value="Ropa Hombre">Ropa Hombre</option>
-                    <option value="Lucha Libre">Lucha Libre</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Modalidad de Envío</label>
-                  <select 
-                    className="form-control"
-                    value={formData.tipo_envio}
-                    onChange={(e) => setFormData({ ...formData, tipo_envio: e.target.value })}
-                  >
-                    <option value="Local">Envío Local (Inmediato / Alimentos)</option>
-                    <option value="Nacional">Envío Nacional (Paquetería)</option>
-                  </select>
-                </div>
-
-                <div className="form-group full-width">
-                  <label className="form-label">Descripción o Ingredientes / Tallas</label>
-                  <textarea 
-                    className="form-control"
-                    rows="3"
-                    placeholder="Describe detalles, cortes, tallas disponibles o ingredientes del platillo..."
-                    value={formData.descripcion}
-                    onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                  />
-                </div>
-
-                <div className="form-group full-width">
-                  <label className="form-label">Foto del Producto (Desde tu celular o computadora)</label>
-                  <label className="file-dropzone">
-                    <Upload size={24} color="var(--accent-gold)" />
-                    <span style={{ fontSize: '0.88rem', fontWeight: 500 }}>
-                      Toca aquí para seleccionar una foto de tu galería
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Formatos JPG, PNG, WEBP
-                    </span>
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-
-                  {imagePreview && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '10px' }}>
-                      <img src={imagePreview} alt="Previsualización" className="preview-thumb" />
-                      <span style={{ fontSize: '0.8rem', color: 'var(--success)' }}>
-                        Foto cargada correctamente para la publicación
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="form-group full-width" style={{ marginTop: '10px' }}>
-                  <button type="submit" className="submit-btn" disabled={submitting}>
-                    <PlusCircle size={18} />
-                    <span>{submitting ? 'Publicando...' : 'Publicar Producto en Tienda'}</span>
-                  </button>
-                </div>
-
-              </div>
-            </form>
-          )}
-
-          {/* TAB 2: INVENTARIO / BORRAR AGOTADOS */}
-          {activeTab === 'list' && (
-            <div>
-              <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                Aquí puedes ver los artículos disponibles y eliminarlos con un clic cuando se te hayan agotado.
+        {/* SI NO ESTA AUTENTICADO: PANTALLA DE LOGIN */}
+        {!isAuthenticated ? (
+          <div className="admin-body">
+            <div className="login-box">
+              <h3 className="login-title">Iniciar Sesión</h3>
+              <p className="login-desc">
+                Introduce la contraseña de administración para publicar o eliminar artículos.
               </p>
 
-              <div style={{ overflowX: 'auto' }}>
-                <table className="product-admin-table">
-                  <thead>
-                    <tr>
-                      <th>Artículo</th>
-                      <th>Categoría</th>
-                      <th>Precio</th>
-                      <th>Envío</th>
-                      <th>Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.map((p) => (
-                      <tr key={p.id}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <img 
-                              src={p.imagen_url} 
-                              alt={p.nombre} 
-                              style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} 
-                            />
-                            <strong>{p.nombre}</strong>
-                          </div>
-                        </td>
-                        <td>{p.categoria}</td>
-                        <td style={{ color: 'var(--text-gold)', fontWeight: 600 }}>${p.precio} MXN</td>
-                        <td>
-                          <span style={{ 
-                            fontSize: '0.72rem', 
-                            padding: '3px 8px', 
-                            borderRadius: '4px',
-                            background: p.tipo_envio === 'Local' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-                            color: p.tipo_envio === 'Local' ? 'var(--success)' : 'var(--text-secondary)'
-                          }}>
-                            {p.tipo_envio}
-                          </span>
-                        </td>
-                        <td>
-                          <button 
-                            className="delete-btn"
-                            onClick={() => {
-                              if (confirm(`¿Deseas marcar como agotado y eliminar "${p.nombre}"?`)) {
-                                onDeleteProduct(p.id);
-                              }
-                            }}
-                            title="Eliminar producto"
-                          >
-                            <Trash2 size={13} />
-                            <span>Agotado (Borrar)</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: NUMERO DE WHATSAPP */}
-          {activeTab === 'whatsapp' && (
-            <div style={{ maxWidth: '540px' }}>
-              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.25rem', marginBottom: '8px' }}>
-                Número de WhatsApp para recibir pedidos
-              </h3>
-              <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginBottom: '20px' }}>
-                A este número de WhatsApp llegarán los mensajes automáticos que los clientes envíen al presionar "Pedir por WhatsApp". Debe incluir código de país (ej. 52 para México).
-              </p>
-
-              <form onSubmit={handleSavePhone}>
-                <div className="form-group" style={{ marginBottom: '16px' }}>
-                  <label className="form-label">Número de WhatsApp (con lada)</label>
+              <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div className="form-group" style={{ textAlign: 'left' }}>
+                  <label className="form-label">Contraseña de Acceso</label>
                   <input 
-                    type="text" 
+                    type="password" 
                     className="form-control"
-                    value={tempPhone}
-                    onChange={(e) => setTempPhone(e.target.value)}
-                    placeholder="Ejemplo: 5215512345678"
+                    placeholder="Contraseña (por defecto: admin2026)"
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    autoFocus
                     required
                   />
-                  <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                    Formato recomendado para México: 52 seguido de tus 10 dígitos (ej. 525512345678).
-                  </small>
                 </div>
 
-                <button type="submit" className="submit-btn">
-                  <Check size={16} />
-                  <span>{phoneSaved ? '¡Guardado correctamente!' : 'Guardar Número de WhatsApp'}</span>
+                {loginError && (
+                  <div style={{ color: 'var(--danger)', fontSize: '0.82rem', textAlign: 'left' }}>
+                    {loginError}
+                  </div>
+                )}
+
+                <button type="submit" className="submit-btn" style={{ width: '100%', marginTop: '6px' }}>
+                  <span>Ingresar al Panel</span>
+                  <ArrowRight size={16} />
                 </button>
               </form>
-            </div>
-          )}
 
-          {/* TAB 4: CONEXION SUPABASE */}
-          {activeTab === 'supabase' && (
-            <div>
-              <div style={{ 
-                padding: '14px 18px', 
-                borderRadius: '8px', 
-                marginBottom: '20px',
-                background: isSupabaseConfigured ? 'rgba(16, 185, 129, 0.1)' : 'rgba(212, 175, 55, 0.1)',
-                border: isSupabaseConfigured ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(212, 175, 55, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <Database size={20} color={isSupabaseConfigured ? 'var(--success)' : 'var(--accent-gold)'} />
+              <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '20px' }}>
+                Clave inicial sugerida: <code>admin2026</code>
+              </p>
+            </div>
+          </div>
+        ) : (
+          /* SI ESTA AUTENTICADO: TABS DE GESTION */
+          <>
+            <div className="admin-nav-tabs">
+              <button 
+                className={`admin-nav-tab ${activeTab === 'new' ? 'active' : ''}`}
+                onClick={() => setActiveTab('new')}
+              >
+                <PlusCircle size={15} />
+                <span>Publicar Nuevo Producto</span>
+              </button>
+              <button 
+                className={`admin-nav-tab ${activeTab === 'list' ? 'active' : ''}`}
+                onClick={() => setActiveTab('list')}
+              >
+                <span>Inventario Activo ({products.length})</span>
+              </button>
+              <button 
+                className={`admin-nav-tab ${activeTab === 'whatsapp' ? 'active' : ''}`}
+                onClick={() => setActiveTab('whatsapp')}
+              >
+                <Phone size={15} />
+                <span>Teléfono WhatsApp</span>
+              </button>
+            </div>
+
+            <div className="admin-body">
+              {/* TAB 1: FORMULARIO */}
+              {activeTab === 'new' && (
+                <form onSubmit={handleSubmit}>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label className="form-label">Nombre del Producto o Platillo</label>
+                      <input 
+                        type="text" 
+                        className="form-control"
+                        placeholder="Ej. Vestido de Lino o Hamburguesa Angus"
+                        value={formData.nombre}
+                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Precio ($ MXN)</label>
+                      <input 
+                        type="number" 
+                        className="form-control"
+                        placeholder="Ej. 450"
+                        value={formData.precio}
+                        onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Categoría</label>
+                      <select 
+                        className="form-control"
+                        value={formData.categoria}
+                        onChange={(e) => handleCategoryChange(e.target.value)}
+                      >
+                        <option value="Comida">Comida</option>
+                        <option value="Ropa Mujer">Ropa Mujer</option>
+                        <option value="Ropa Hombre">Ropa Hombre</option>
+                        <option value="Lucha Libre">Lucha Libre</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Tipo de Envío</label>
+                      <select 
+                        className="form-control"
+                        value={formData.tipo_envio}
+                        onChange={(e) => setFormData({ ...formData, tipo_envio: e.target.value })}
+                      >
+                        <option value="Local">Envío Local (Alimentos / Mismo Día)</option>
+                        <option value="Nacional">Envío Nacional por Paquetería</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label className="form-label">Descripción</label>
+                      <textarea 
+                        className="form-control"
+                        rows="2"
+                        placeholder="Detalles, tallas disponibles o ingredientes..."
+                        value={formData.descripcion}
+                        onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label className="form-label">Foto del Producto (Galería o Cámara)</label>
+                      <label className="file-dropzone">
+                        <Upload size={22} color="var(--text-secondary)" />
+                        <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                          Toca aquí para seleccionar una foto de tu celular o PC
+                        </span>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+
+                      {imagePreview && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '10px' }}>
+                          <img src={imagePreview} alt="Previsualización" className="preview-thumb" />
+                          <span style={{ fontSize: '0.8rem', color: 'var(--success)' }}>
+                            Foto seleccionada para subir
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="form-group full-width" style={{ marginTop: '10px' }}>
+                      <button type="submit" className="submit-btn" disabled={submitting}>
+                        <PlusCircle size={17} />
+                        <span>{submitting ? 'Guardando en Base de Datos...' : 'Publicar en Tienda'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
+
+              {/* TAB 2: INVENTARIO */}
+              {activeTab === 'list' && (
                 <div>
-                  <strong style={{ fontSize: '0.9rem', color: isSupabaseConfigured ? 'var(--success)' : 'var(--text-gold)' }}>
-                    {isSupabaseConfigured ? 'Conectado exitosamente con Supabase' : 'Modo Demo Activo (Almacenamiento Local)'}
-                  </strong>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
-                    {isSupabaseConfigured 
-                      ? 'Los productos y fotos se sincronizan directamente con tu base de datos y storage en la nube.'
-                      : 'Actualmente estás viendo la tienda en modo demostración. Sigue los 2 pasos abajo para conectar tu Supabase gratuito.'}
-                  </p>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="product-admin-table">
+                      <thead>
+                        <tr>
+                          <th>Producto</th>
+                          <th>Categoría</th>
+                          <th>Precio</th>
+                          <th>Envío</th>
+                          <th>Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {products.map((p) => (
+                          <tr key={p.id}>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <img 
+                                  src={p.imagen_url} 
+                                  alt={p.nombre} 
+                                  style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px' }} 
+                                />
+                                <strong>{p.nombre}</strong>
+                              </div>
+                            </td>
+                            <td>{p.categoria}</td>
+                            <td style={{ fontWeight: 600 }}>${p.precio} MXN</td>
+                            <td>
+                              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                                {p.tipo_envio}
+                              </span>
+                            </td>
+                            <td>
+                              <button 
+                                className="delete-btn"
+                                onClick={() => {
+                                  if (confirm(`¿Marcar como agotado y borrar "${p.nombre}"?`)) {
+                                    onDeleteProduct(p.id);
+                                  }
+                                }}
+                                title="Borrar artículo agotado"
+                              >
+                                <Trash2 size={13} />
+                                <span>Agotado (Borrar)</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <h4 style={{ fontSize: '1rem', marginBottom: '8px', color: 'var(--text-primary)' }}>
-                Paso 1: Script SQL para crear tu tabla en Supabase
-              </h4>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                Entra a tu proyecto en <strong>supabase.com</strong>, haz clic en <strong>SQL Editor</strong> en la barra izquierda, pega el siguiente código y presiona <strong>RUN</strong>:
-              </p>
+              {/* TAB 3: WHATSAPP */}
+              {activeTab === 'whatsapp' && (
+                <div style={{ maxWidth: '480px' }}>
+                  <form onSubmit={handleSavePhone}>
+                    <div className="form-group" style={{ marginBottom: '16px' }}>
+                      <label className="form-label">Número de WhatsApp de Ventas</label>
+                      <input 
+                        type="text" 
+                        className="form-control"
+                        value={tempPhone}
+                        onChange={(e) => setTempPhone(e.target.value)}
+                        placeholder="Ejemplo: 525512345678"
+                        required
+                      />
+                      <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                        Incluye código de país (52 para México).
+                      </small>
+                    </div>
 
-              <div className="code-box">
-                <button className="copy-pill-btn" onClick={handleCopySql}>
-                  {copiedSql ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                  <span>{copiedSql ? 'Copiado' : 'Copiar SQL'}</span>
-                </button>
-                {SUPABASE_SQL_SCRIPT}
-              </div>
-
-              <h4 style={{ fontSize: '1rem', marginTop: '20px', marginBottom: '8px', color: 'var(--text-primary)' }}>
-                Paso 2: Crear el Storage para las Fotos
-              </h4>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                En tu panel de Supabase, ve a la sección <strong>Storage</strong>, crea un bucket llamado exactamente <code>fotos-productos</code> y marca la casilla <strong>"Public bucket"</strong>.
-              </p>
-
-              <h4 style={{ fontSize: '1rem', marginTop: '20px', marginBottom: '8px', color: 'var(--text-primary)' }}>
-                Paso 3: Colocar tus credenciales en el archivo <code>.env.local</code>
-              </h4>
-              <div className="code-box">
-{`VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
-VITE_SUPABASE_ANON_KEY=tu_clave_anonima_publica
-VITE_WHATSAPP_NUMBER=525512345678`}
-              </div>
+                    <button type="submit" className="submit-btn">
+                      <Check size={16} />
+                      <span>{phoneSaved ? 'Guardado correctamente' : 'Guardar Número'}</span>
+                    </button>
+                  </form>
+                </div>
+              )}
             </div>
-          )}
+          </>
+        )}
 
-        </div>
       </div>
     </div>
   );
