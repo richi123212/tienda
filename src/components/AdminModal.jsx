@@ -47,7 +47,7 @@ export default function AdminModal({
 
   if (!isOpen) return null;
 
-  // Obtener credenciales configuradas
+  // Obtener credenciales complejas configuradas
   const getStoredCredentials = () => {
     const stored = localStorage.getItem('tienda_credentials');
     if (stored) {
@@ -58,8 +58,8 @@ export default function AdminModal({
       }
     }
     return {
-      usuario: 'admin',
-      password: 'AdminTienda2026!#'
+      usuario: 'admin_boutique_mx',
+      password: 'Kp8#mX!92$vL2026&'
     };
   };
 
@@ -91,16 +91,10 @@ export default function AdminModal({
       }
     }
 
-    // 2. Probar con credenciales configuradas de la tienda
+    // 2. Probar con credenciales complejas configuradas
     const validCreds = getStoredCredentials();
-    const matchesUser = 
-      trimmedUser === validCreds.usuario.toLowerCase() || 
-      trimmedUser === 'admin' || 
-      trimmedUser === 'richi';
-      
-    const matchesPass = 
-      enteredPassword === validCreds.password ||
-      enteredPassword === 'AdminTienda2026!#';
+    const matchesUser = trimmedUser === validCreds.usuario.toLowerCase();
+    const matchesPass = enteredPassword === validCreds.password;
 
     if (matchesUser && matchesPass) {
       setIsAuthenticated(true);
