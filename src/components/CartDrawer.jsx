@@ -70,43 +70,61 @@ export default function CartDrawer({
             </div>
           ) : (
             <>
-              {cart.map((item) => (
-                <div key={item.id} className="cart-item">
-                  <img src={item.imagen_url} alt={item.nombre} className="cart-item-img" />
-                  
-                  <div className="cart-item-info">
-                    <span className="cart-item-title">{item.nombre}</span>
-                    <span className="cart-item-category">
-                      {item.categoria} • {item.tipo_envio === 'Local' ? 'Local' : 'Nacional'}
-                    </span>
-                    <span className="cart-item-price">{formatPrice(item.precio * item.quantity)}</span>
-                  </div>
+              {cart.map((item) => {
+                const maxStock = item.stock !== undefined ? parseInt(item.stock, 10) : 5;
+                const isMaxReached = item.quantity >= maxStock;
 
-                  <div className="qty-controls">
-                    <button 
-                      className="qty-btn"
-                      onClick={() => onUpdateQty(item.id, item.quantity - 1)}
-                    >
-                      <Minus size={12} />
-                    </button>
-                    <span className="qty-num">{item.quantity}</span>
-                    <button 
-                      className="qty-btn"
-                      onClick={() => onUpdateQty(item.id, item.quantity + 1)}
-                    >
-                      <Plus size={12} />
-                    </button>
-                    <button 
-                      className="qty-btn"
-                      style={{ color: 'var(--danger)', marginLeft: '4px' }}
-                      onClick={() => onRemoveItem(item.id)}
-                      title="Eliminar artículo"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                return (
+                  <div key={item.id} className="cart-item">
+                    <img src={item.imagen_url} alt={item.nombre} className="cart-item-img" />
+                    
+                    <div className="cart-item-info">
+                      <span className="cart-item-title">{item.nombre}</span>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <span className="cart-item-category">
+                          {item.categoria}
+                        </span>
+                        <span style={{ 
+                          fontSize: '0.72rem', 
+                          color: isMaxReached ? '#b45309' : 'var(--text-muted)',
+                          fontWeight: isMaxReached ? 600 : 400
+                        }}>
+                          (Disponibles: {maxStock})
+                        </span>
+                      </div>
+                      <span className="cart-item-price">{formatPrice(item.precio * item.quantity)}</span>
+                    </div>
+
+                    <div className="qty-controls">
+                      <button 
+                        className="qty-btn"
+                        onClick={() => onUpdateQty(item.id, item.quantity - 1)}
+                        title="Disminuir una pieza"
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <span className="qty-num">{item.quantity}</span>
+                      <button 
+                        className="qty-btn"
+                        onClick={() => onUpdateQty(item.id, item.quantity + 1)}
+                        disabled={isMaxReached}
+                        style={isMaxReached ? { opacity: 0.35, cursor: 'not-allowed', background: '#f3f4f6' } : {}}
+                        title={isMaxReached ? `Límite alcanzado: solo hay ${maxStock} disponibles` : "Aumentar una pieza"}
+                      >
+                        <Plus size={12} />
+                      </button>
+                      <button 
+                        className="qty-btn"
+                        style={{ color: 'var(--danger)', marginLeft: '4px' }}
+                        onClick={() => onRemoveItem(item.id)}
+                        title="Eliminar artículo de la bolsa"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </>
           )}
         </div>

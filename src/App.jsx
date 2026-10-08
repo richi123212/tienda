@@ -94,16 +94,27 @@ export default function App() {
     localStorage.setItem('carrito_bolsa', JSON.stringify(cart));
   }, [cart]);
 
-  // Manejar Carrito
+  // Manejar Carrito con límite estricto de existencias (Stock)
   const handleAddToCart = (product) => {
+    const maxStock = product.stock !== undefined ? parseInt(product.stock, 10) : 5;
+    
+    if (product.agotado || maxStock <= 0) {
+      alert(`El artículo "${product.nombre}" está agotado.`);
+      return;
+    }
+
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
+        if (existing.quantity >= maxStock) {
+          alert(`Solo hay ${maxStock} piezas disponibles de "${product.nombre}".`);
+          return prev;
+        }
         return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.id === product.id ? { ...item, quantity: item.quantity + 1, stock: maxStock } : item
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { ...product, quantity: 1, stock: maxStock }];
     });
     setIsCartOpen(true);
   };
@@ -113,8 +124,18 @@ export default function App() {
       handleRemoveFromCart(id);
       return;
     }
+
+    const currentItem = cart.find((i) => i.id === id);
+    const prod = products.find((p) => p.id === id) || currentItem;
+    const maxStock = prod?.stock !== undefined ? parseInt(prod.stock, 10) : 5;
+
+    if (newQty > maxStock) {
+      alert(`Solo hay ${maxStock} piezas disponibles de este producto.`);
+      return;
+    }
+
     setCart((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, quantity: newQty } : item))
+      prev.map((item) => (item.id === id ? { ...item, quantity: newQty, stock: maxStock } : item))
     );
   };
 
