@@ -70,7 +70,10 @@ export default function AdminModal({
     const stored = localStorage.getItem('tienda_credentials');
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        if (parsed.usuario && parsed.usuario !== 'admin' && parsed.usuario !== 'richi') {
+          return parsed;
+        }
       } catch (e) {
         // fallback
       }
@@ -105,25 +108,16 @@ export default function AdminModal({
       }
     }
 
-    // 2. Credenciales autorizadas
+    // 2. Credenciales estrictas de alta seguridad
+    const masterUser = (import.meta.env.VITE_ADMIN_USER || 'adm_x92_tiendapro').toLowerCase();
+    const masterPass = import.meta.env.VITE_ADMIN_PASS || 'Wp8$mX#92vL!kQ2026&';
+
     const customCreds = getStoredCredentials();
-    const validUsers = ['richi', 'admin_boutique_mx', 'admin', 'tienda', 'richi123212'];
-    if (customCreds?.usuario) {
-      validUsers.push(customCreds.usuario.toLowerCase());
-    }
+    const expectedUser = customCreds?.usuario ? customCreds.usuario.toLowerCase() : masterUser;
+    const expectedPass = customCreds?.password || masterPass;
 
-    const validPasswords = [
-      'TiendaSegura2026!',
-      'Kp8#mX!92$vL2026&',
-      'TiendaPro2026!',
-      'AdminTienda2026!#'
-    ];
-    if (customCreds?.password) {
-      validPasswords.push(customCreds.password);
-    }
-
-    const isUserValid = validUsers.includes(trimmedUser);
-    const isPassValid = validPasswords.includes(enteredPassword);
+    const isUserValid = trimmedUser === expectedUser;
+    const isPassValid = enteredPassword === expectedPass;
 
     if (isUserValid && isPassValid) {
       setIsAuthenticated(true);
