@@ -1075,11 +1075,181 @@ body {
   to { transform: translateX(0); }
 }
 
-@media (max-width: 640px) {
-  .hero-title {
-    font-size: 2.2rem;
+/* ==========================================================================
+   Mobile Optimization & Responsive Layout
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Fondo bloqueado y modal pantalla completa en móvil */
+  .modal-backdrop {
+    padding: 0;
+    align-items: flex-end;
   }
+
+  .admin-modal-card {
+    max-width: 100%;
+    width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    border: none;
+  }
+
+  .admin-header {
+    padding: 14px 16px;
+  }
+
+  .admin-title-wrap h2 {
+    font-size: 1.15rem !important;
+  }
+
+  .admin-nav-tabs {
+    padding: 0 16px;
+    gap: 14px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .admin-nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-nav-tab {
+    font-size: 0.8rem;
+    padding: 10px 0;
+  }
+
+  .admin-body {
+    padding: 16px;
+  }
+
+  /* Transformar la tabla de productos a tarjetas móviles táctiles */
+  .product-admin-table,
+  .product-admin-table tbody,
+  .product-admin-table tr,
+  .product-admin-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .product-admin-table thead {
+    display: none;
+  }
+
+  .product-admin-table tr {
+    background: #ffffff;
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .product-admin-table td {
+    padding: 5px 0;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.84rem;
+  }
+
+  .product-admin-table td:first-child {
+    display: block;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f4f4f5;
+    margin-bottom: 8px;
+  }
+
+  .product-admin-table td:last-child {
+    padding-top: 10px;
+    border-top: 1px solid #f4f4f5;
+    margin-top: 8px;
+    display: block;
+  }
+
+  .product-admin-table td:last-child > div {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+
+  .product-admin-table td:last-child button {
+    justify-content: center;
+    padding: 9px 4px;
+    font-size: 0.74rem;
+  }
+
+  /* Cabecera y catálogo en móvil */
+  .header-container {
+    padding: 12px 16px;
+  }
+
   .brand-title {
-    font-size: 1.6rem;
+    font-size: 1.55rem;
+  }
+
+  .hero-banner {
+    padding: 26px 16px 16px;
+  }
+
+  .hero-title {
+    font-size: 2.05rem;
+    line-height: 1.2;
+  }
+
+  .hero-description {
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  /* Pestañas de categorías deslizables horizontalmente en celular */
+  .filters-section {
+    padding: 10px 16px 20px;
+  }
+
+  .tabs-wrapper {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    padding: 4px 0 10px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .tabs-wrapper::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 8px 16px;
+    font-size: 0.84rem;
+  }
+
+  .search-filter-bar {
+    padding: 8px 14px;
+  }
+
+  .products-container {
+    padding: 0 16px 50px;
+  }
+
+  .products-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .cart-drawer {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .login-box {
+    margin: 15px auto;
   }
 }
+

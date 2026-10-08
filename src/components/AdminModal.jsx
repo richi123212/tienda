@@ -22,12 +22,18 @@ export default function AdminModal({
 
   useEffect(() => {
     if (isOpen) {
+      document.body.style.overflow = 'hidden';
       setIsAuthenticated(false);
       setUserInput('');
       setPasswordInput('');
       setLoginError('');
       setEditingProduct(null);
+    } else {
+      document.body.style.overflow = '';
     }
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [isOpen]);
   
   // Login form states
