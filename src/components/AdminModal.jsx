@@ -283,11 +283,13 @@ export default function AdminModal({
             </div>
             <div>
               <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.35rem', lineHeight: 1.1 }}>
-                {isAuthenticated ? 'Administración de Catálogo' : 'Acceso Privado'}
+                {isAuthenticated ? 'Administración de Catálogo' : 'Acceso'}
               </h2>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                {isAuthenticated ? 'Inventario, existencias y productos' : 'Identifícate con tus credenciales'}
-              </p>
+              {isAuthenticated && (
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Inventario, existencias y productos
+                </p>
+              )}
             </div>
           </div>
           
@@ -323,18 +325,15 @@ export default function AdminModal({
         {!isAuthenticated ? (
           <div className="admin-body">
             <div className="login-box">
-              <h3 className="login-title">Identificación</h3>
-              <p className="login-desc">
-                Ingresa con tu usuario o correo y contraseña para administrar.
-              </p>
+              <h3 className="login-title">Iniciar Sesión</h3>
 
               <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div className="form-group" style={{ textAlign: 'left' }}>
-                  <label className="form-label">Usuario o Correo</label>
+                  <label className="form-label">Usuario</label>
                   <input 
                     type="text" 
                     className="form-control"
-                    placeholder="Usuario o correo"
+                    placeholder="Usuario"
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
                     autoFocus

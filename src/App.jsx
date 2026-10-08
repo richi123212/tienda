@@ -6,9 +6,11 @@ import AdminModal from './components/AdminModal';
 import Footer from './components/Footer';
 import { INITIAL_PRODUCTS } from './data/initialProducts';
 import { supabase, isSupabaseConfigured } from './supabase';
-import { Search, AlertCircle } from 'lucide-react';
+import { Search, AlertCircle, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 
 const CATEGORIES = ['Todas', 'Comida', 'Ropa Mujer', 'Ropa Hombre', 'Lucha Libre'];
+const SECTION_CATEGORIES = ['Comida', 'Ropa Mujer', 'Ropa Hombre', 'Lucha Libre'];
+const ITEMS_PER_PAGE = 6;
 
 export default function App() {
   const [products, setProducts] = useState(() => {
@@ -24,6 +26,7 @@ export default function App() {
 
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Carrito / Bolsa
   const [cart, setCart] = useState(() => {
@@ -93,6 +96,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('carrito_bolsa', JSON.stringify(cart));
   }, [cart]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, searchQuery]);
 
   // Manejar Carrito con límite estricto de existencias (Stock)
   const handleAddToCart = (product) => {
@@ -322,6 +329,12 @@ export default function App() {
     return matchesCategory && matchesSearch;
   });
 
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const cartTotalItems = cart.reduce((total, item) => total + item.quantity, 0);
 
   return (
@@ -333,14 +346,14 @@ export default function App() {
         onOpenAdmin={() => setIsAdminOpen(true)}
       />
 
-      {/* Hero Section Limpio */}
+      {/* Hero Section */}
       <section className="hero-banner">
         <h2 className="hero-title">
-          Colección de Moda & <em>Cocina Artesanal</em>
+          Venta de Ropa y Comida
         </h2>
 
         <p className="hero-description">
-          Platillos preparados al momento, prendas de autor y artículos de lucha libre. Haz tu pedido directo por WhatsApp.
+          Compra ropa y comida, haz tu pedido por WhatsApp.
         </p>
       </section>
 
@@ -374,24 +387,140 @@ export default function App() {
         </div>
       </section>
 
-      {/* Catálogo de Productos */}
+      {/* Catálogo de Productos con división por secciones y 6 por grupo */}
       <main className="products-container">
         {filteredProducts.length === 0 ? (
           <div className="empty-state">
             <AlertCircle size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
             <p>No se encontraron artículos en esta categoría o búsqueda.</p>
           </div>
+        ) : selectedCategory === 'Todas' && !searchQuery.trim() ? (
+          /* VISTA TODAS: DIVIDIDA POR SECCIONES DE 6 PRODUCTOS */
+          <div className="category-sections-list">
+            {SECTION_CATEGORIES.map((cat, idx) => {
+              const catProducts = products.filter((p) => p.categoria === cat);
+              if (catProducts.length === 0) return null;
+              const visibleItems = catProducts.slice(0, ITEMS_PER_PAGE);
+              const remainingCount = catProducts.length - ITEMS_PER_PAGE;
+
+              return (
+                <section key={cat} className="category-section-block">
+                  <div className="category-section-header">
+                    <div>
+                      <h3 className="category-section-title">{cat}</h3>
+                      <span className="category-section-subtitle">
+                        {catProducts.length} {catProducts.length === 1 ? 'artículo disponible' : 'artículos disponibles'}
+                      </span>
+                    </div>
+
+                    <button 
+                      className="category-view-all-btn"
+                      onClick={() => {
+                        setSelectedCategory(cat);
+                        const el = document.getElementById('catalogo');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                    >
+                      <span>Ver todos ({catProducts.length})</span>
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
+
+                  <div className="products-grid">
+                    {visibleItems.map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        whatsappNumber={whatsappNumber}
+                        onAddToCart={handleAddToCart}
+                        isInCart={cart.some((item) => item.id === product.id)}
+                      />
+                    ))}
+                  </div>
+
+                  {remainingCount > 0 && (
+                    <div className="category-section-footer">
+                      <button
+                        className="category-show-more-btn"
+                        onClick={() => {
+                          setSelectedCategory(cat);
+                          const el = document.getElementById('catalogo');
+                          if (el) el.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                      >
+                        <span>Ver los {remainingCount} artículos más de {cat}</span>
+                        <ArrowRight size={14} />
+                      </button>
+                    </div>
+                  )}
+
+                  {idx < SECTION_CATEGORIES.length - 1 && (
+                    <div className="category-divider-line" />
+                  )}
+                </section>
+              );
+            })}
+          </div>
         ) : (
-          <div className="products-grid">
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                whatsappNumber={whatsappNumber}
-                onAddToCart={handleAddToCart}
-                isInCart={cart.some((item) => item.id === product.id)}
-              />
-            ))}
+          /* VISTA POR CATEGORIA ESPECIFICA O BUSQUEDA: PAGINADA EN BLOQUES DE 6 */
+          <div>
+            <div className="products-grid">
+              {paginatedProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  whatsappNumber={whatsappNumber}
+                  onAddToCart={handleAddToCart}
+                  isInCart={cart.some((item) => item.id === product.id)}
+                />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="pagination-wrapper">
+                <button
+                  className="pagination-btn"
+                  disabled={currentPage === 1}
+                  onClick={() => {
+                    setCurrentPage((prev) => Math.max(1, prev - 1));
+                    const el = document.getElementById('catalogo');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  <ChevronLeft size={16} />
+                  <span>Anterior</span>
+                </button>
+
+                <div className="pagination-numbers">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      className={`pagination-num-btn ${currentPage === page ? 'active' : ''}`}
+                      onClick={() => {
+                        setCurrentPage(page);
+                        const el = document.getElementById('catalogo');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  className="pagination-btn"
+                  disabled={currentPage === totalPages}
+                  onClick={() => {
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+                    const el = document.getElementById('catalogo');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  <span>Siguiente</span>
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>
