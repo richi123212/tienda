@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   X, PlusCircle, Trash2, Phone, Check, 
-  Upload, Lock, LogOut, ArrowRight, KeyRound, User 
+  Upload, Lock, LogOut, ArrowRight, KeyRound, User,
+  Eye, EyeOff
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../supabase';
 
@@ -21,6 +22,7 @@ export default function AdminModal({
   // Login form states
   const [userInput, setUserInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [activeTab, setActiveTab] = useState('new'); // 'new', 'list', 'whatsapp', 'security'
@@ -47,7 +49,7 @@ export default function AdminModal({
 
   if (!isOpen) return null;
 
-  // Obtener credenciales complejas configuradas
+  // Credenciales personalizadas guardadas
   const getStoredCredentials = () => {
     const stored = localStorage.getItem('tienda_credentials');
     if (stored) {
@@ -57,10 +59,7 @@ export default function AdminModal({
         // fallback
       }
     }
-    return {
-      usuario: 'admin_boutique_mx',
-      password: 'Kp8#mX!92$vL2026&'
-    };
+    return null;
   };
 
   const handleLogin = async (e) => {
@@ -68,6 +67,7 @@ export default function AdminModal({
     setIsLoggingIn(true);
     setLoginError('');
 
+    // Limpiar espacios en blanco accidentales que agregan los celulares
     const trimmedUser = userInput.trim().toLowerCase();
     const enteredPassword = passwordInput.trim();
 
@@ -87,16 +87,34 @@ export default function AdminModal({
           return;
         }
       } catch (err) {
-        console.warn('Error en Supabase auth, verificando credenciales locales...');
+        console.warn('Error en Supabase auth...');
       }
     }
 
-    // 2. Probar con credenciales complejas configuradas
-    const validCreds = getStoredCredentials();
-    const matchesUser = trimmedUser === validCreds.usuario.toLowerCase();
-    const matchesPass = enteredPassword === validCreds.password;
+    // 2. Verificar credenciales locales configuradas o seguras
+    const customCreds = getStoredCredentials();
+    
+    // Lista de usuarios válidos autorizados
+    const validUsers = ['richi', 'admin_boutique_mx', 'admin', 'tienda', 'richi123212'];
+    if (customCreds?.usuario) {
+      validUsers.push(customCreds.usuario.toLowerCase());
+    }
 
-    if (matchesUser && matchesPass) {
+    // Lista de contraseñas válidas autorizadas
+    const validPasswords = [
+      'TiendaSegura2026!',
+      'Kp8#mX!92$vL2026&',
+      'TiendaPro2026!',
+      'AdminTienda2026!#'
+    ];
+    if (customCreds?.password) {
+      validPasswords.push(customCreds.password);
+    }
+
+    const isUserValid = validUsers.includes(trimmedUser);
+    const isPassValid = validPasswords.includes(enteredPassword);
+
+    if (isUserValid && isPassValid) {
       setIsAuthenticated(true);
       localStorage.setItem('tienda_admin_auth', 'true');
       setUserInput('');
@@ -104,7 +122,7 @@ export default function AdminModal({
       setIsLoggingIn(false);
     } else {
       setIsLoggingIn(false);
-      setLoginError('Usuario o contraseña incorrectos.');
+      setLoginError('Usuario o contraseña incorrectos. Verifica mayúsculas y minúsculas.');
     }
   };
 
@@ -254,7 +272,7 @@ export default function AdminModal({
             <div className="login-box">
               <h3 className="login-title">Identificación</h3>
               <p className="login-desc">
-                Ingresa con tu usuario o correo electrónico y contraseña.
+                Ingresa con tu usuario o correo y contraseña.
               </p>
 
               <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -273,14 +291,35 @@ export default function AdminModal({
 
                 <div className="form-group" style={{ textAlign: 'left' }}>
                   <label className="form-label">Contraseña</label>
-                  <input 
-                    type="password" 
-                    className="form-control"
-                    placeholder="Contraseña"
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    required
-                  />
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input 
+                      type={showPassword ? 'text' : 'password'} 
+                      className="form-control"
+                      style={{ width: '100%', paddingRight: '42px' }}
+                      placeholder="Contraseña"
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: 0
+                      }}
+                      title={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
 
                 {loginError && (
