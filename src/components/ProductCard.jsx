@@ -1,5 +1,27 @@
-import React from 'react';
-import { Plus, Check, Truck, Shield, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, Check, Truck, Shield, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+
+export const getProductImages = (product) => {
+  if (Array.isArray(product?.imagenes) && product.imagenes.length > 0) {
+    return product.imagenes.filter(Boolean).slice(0, 3);
+  }
+  if (product?.imagen_url) {
+    const raw = String(product.imagen_url).trim();
+    if (raw.startsWith('[') && raw.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.filter(Boolean).slice(0, 3);
+        }
+      } catch (e) {}
+    }
+    if (raw.includes('|||')) {
+      return raw.split('|||').map(s => s.trim()).filter(Boolean).slice(0, 3);
+    }
+    return [raw];
+  }
+  return ['https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80'];
+};
 
 export default function ProductCard({ 
   product, 
@@ -9,6 +31,39 @@ export default function ProductCard({
 }) {
   const stock = product.stock !== undefined ? parseInt(product.stock, 10) : 5;
   const isAgotado = Boolean(product.agotado) || stock <= 0;
+
+  // Soporte de 1 a 3 fotos con slider táctil y flechas
+  const images = getProductImages(product);
+  const [currentImgIndex, setCurrentImgIndex] = useState(0);
+  const [touchStartX, setTouchStartX] = useState(null);
+
+  const handlePrev = (e) => {
+    e.stopPropagation();
+    setCurrentImgIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const handleNext = (e) => {
+    e.stopPropagation();
+    setCurrentImgIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  const handleTouchStart = (e) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX - touchEndX;
+    if (Math.abs(diff) > 35) {
+      if (diff > 0) {
+        handleNext(e);
+      } else {
+        handlePrev(e);
+      }
+    }
+    setTouchStartX(null);
+  };
 
   const formatPrice = (amount) => {
     return new Intl.NumberFormat('es-MX', {
@@ -36,13 +91,63 @@ Tipo de envío: ${product.tipo_envio === 'Local' ? 'Envío Local (Comida)' : 'En
 
   return (
     <div className={`product-card ${isAgotado ? 'card-agotado' : ''}`}>
-      <div className="card-image-box">
+      <div 
+        className="card-image-box"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <img 
-          src={product.imagen_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80'} 
-          alt={product.nombre}
+          src={images[currentImgIndex] || 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80'} 
+          alt={`${product.nombre} (Foto ${currentImgIndex + 1} de ${images.length})`}
           className={`product-image ${isAgotado ? 'img-dimmed' : ''}`}
           loading="lazy"
         />
+
+        {/* Controles de carrusel cuando hay de 2 a 3 fotos */}
+        {images.length > 1 && (
+          <>
+            <button 
+              type="button"
+              className="card-carousel-arrow prev"
+              onClick={handlePrev}
+              title="Foto anterior"
+              aria-label="Foto anterior"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            <button 
+              type="button"
+              className="card-carousel-arrow next"
+              onClick={handleNext}
+              title="Siguiente foto"
+              aria-label="Siguiente foto"
+            >
+              <ChevronRight size={16} />
+            </button>
+
+            {/* Puntos de paginación de fotos */}
+            <div className="card-carousel-dots">
+              {images.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className={`card-dot ${currentImgIndex === idx ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentImgIndex(idx);
+                  }}
+                  title={`Ver foto ${idx + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Contador de fotos (ej. 1/3) */}
+            <div className="photo-counter-tag">
+              <span>{currentImgIndex + 1}/{images.length}</span>
+            </div>
+          </>
+        )}
 
         {isAgotado ? (
           <div className="agotado-badge">

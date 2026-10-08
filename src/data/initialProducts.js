@@ -7,6 +7,11 @@ export const INITIAL_PRODUCTS = [
     categoria: 'Comida',
     descripcion: 'Corte selecto de 400g preparado a fuego lento con especias de la casa, papas al romero y mantequilla trufada.',
     imagen_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
+    imagenes: [
+      'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1546964124-0cce460f38ef?auto=format&fit=crop&w=800&q=80'
+    ],
     tipo_envio: 'Local'
   },
   {
@@ -16,6 +21,11 @@ export const INITIAL_PRODUCTS = [
     categoria: 'Comida',
     descripcion: 'Elaboración artesanal con cacao al 70%, relleno de ganache suave y frutos silvestres frescos.',
     imagen_url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=80',
+    imagenes: [
+      'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1606890737304-57a1ca8a5b62?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1588195538326-c5b1e9f80a1b?auto=format&fit=crop&w=800&q=80'
+    ],
     tipo_envio: 'Local'
   },
   {
@@ -45,6 +55,11 @@ export const INITIAL_PRODUCTS = [
     categoria: 'Ropa Mujer',
     descripcion: 'Diseño holgado con caída impecable confeccionado en 100% lino orgánico prelavado en tono marfil.',
     imagen_url: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&w=800&q=80',
+    imagenes: [
+      'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=800&q=80'
+    ],
     tipo_envio: 'Nacional'
   },
   {
@@ -83,6 +98,10 @@ export const INITIAL_PRODUCTS = [
     categoria: 'Ropa Hombre',
     descripcion: 'Confección artesanal en lino puro, alforzas sutiles frontales y cuello mao contemporáneo.',
     imagen_url: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80',
+    imagenes: [
+      'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80'
+    ],
     tipo_envio: 'Nacional'
   },
   {
@@ -121,6 +140,10 @@ export const INITIAL_PRODUCTS = [
     categoria: 'Lucha Libre',
     descripcion: 'Elaborada a mano en vinipiel reforzado con forro interno de esponja transpirable y agujetas dobles.',
     imagen_url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80',
+    imagenes: [
+      'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=800&q=80'
+    ],
     tipo_envio: 'Nacional'
   },
   {

@@ -155,38 +155,66 @@ export default function App() {
   };
 
   // Manejar Administración de Productos
-  const handleAddProduct = async (newProduct, imageFile) => {
-    let finalImageUrl = newProduct.imagen_url;
+  // Manejar Administración de Productos con hasta 3 fotos
+  const handleAddProduct = async (newProduct, photoSlots = []) => {
+    let finalUrls = [];
 
-    if (isSupabaseConfigured && supabase && imageFile) {
-      try {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `${fileName}`;
+    // Subir cada foto que sea un File nuevo o conservar la URL existente
+    if (Array.isArray(photoSlots) && photoSlots.length > 0) {
+      for (let i = 0; i < photoSlots.length; i++) {
+        const slot = photoSlots[i];
+        if (!slot) continue;
 
-        const { error: uploadError } = await supabase.storage
-          .from('fotos-productos')
-          .upload(filePath, imageFile, {
-            contentType: imageFile.type,
-            upsert: false
-          });
+        if (slot.file && isSupabaseConfigured && supabase) {
+          try {
+            const fileExt = slot.file.name.split('.').pop();
+            const fileName = `${Date.now()}-${i}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+            const { error: uploadError } = await supabase.storage
+              .from('fotos-productos')
+              .upload(fileName, slot.file, {
+                contentType: slot.file.type,
+                upsert: false
+              });
 
-        if (!uploadError) {
-          const { data } = supabase.storage
-            .from('fotos-productos')
-            .getPublicUrl(filePath);
-          if (data?.publicUrl) {
-            finalImageUrl = data.publicUrl;
+            if (!uploadError) {
+              const { data } = supabase.storage
+                .from('fotos-productos')
+                .getPublicUrl(fileName);
+              if (data?.publicUrl) {
+                finalUrls.push(data.publicUrl);
+                continue;
+              }
+            }
+          } catch (err) {
+            console.error(`Error al subir foto ${i + 1} a Supabase:`, err);
           }
         }
-      } catch (err) {
-        console.error('Error al subir a Supabase Storage:', err);
+
+        if (slot.url) {
+          finalUrls.push(slot.url);
+        } else if (slot.preview && !slot.preview.startsWith('data:')) {
+          finalUrls.push(slot.preview);
+        } else if (slot.preview && slot.preview.startsWith('data:')) {
+          finalUrls.push(slot.preview);
+        }
       }
     }
 
+    // Si no hay ninguna foto en los slots, usar la imagen previa o default
+    if (finalUrls.length === 0) {
+      if (newProduct.imagen_url) {
+        finalUrls = newProduct.imagen_url.split('|||').filter(Boolean);
+      } else {
+        finalUrls = ['https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80'];
+      }
+    }
+
+    finalUrls = finalUrls.slice(0, 3);
+
     const readyProduct = { 
       ...newProduct, 
-      imagen_url: finalImageUrl,
+      imagenes: finalUrls,
+      imagen_url: finalUrls.join('|||'),
       stock: parseInt(newProduct.stock, 10) || 5,
       agotado: (parseInt(newProduct.stock, 10) || 5) <= 0
     };
@@ -205,7 +233,7 @@ export default function App() {
         }]).select();
 
         if (!insertError && insertedData?.[0]) {
-          setProducts((prev) => [insertedData[0], ...prev]);
+          setProducts((prev) => [{ ...insertedData[0], imagenes: finalUrls }, ...prev]);
           return;
         }
       } catch (err) {
@@ -216,38 +244,63 @@ export default function App() {
     setProducts((prev) => [readyProduct, ...prev]);
   };
 
-  const handleUpdateProduct = async (updatedProduct, imageFile) => {
-    let finalImageUrl = updatedProduct.imagen_url;
+  const handleUpdateProduct = async (updatedProduct, photoSlots = []) => {
+    let finalUrls = [];
 
-    if (isSupabaseConfigured && supabase && imageFile) {
-      try {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `${fileName}`;
+    if (Array.isArray(photoSlots) && photoSlots.length > 0) {
+      for (let i = 0; i < photoSlots.length; i++) {
+        const slot = photoSlots[i];
+        if (!slot) continue;
 
-        const { error: uploadError } = await supabase.storage
-          .from('fotos-productos')
-          .upload(filePath, imageFile, {
-            contentType: imageFile.type,
-            upsert: false
-          });
+        if (slot.file && isSupabaseConfigured && supabase) {
+          try {
+            const fileExt = slot.file.name.split('.').pop();
+            const fileName = `${Date.now()}-${i}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+            const { error: uploadError } = await supabase.storage
+              .from('fotos-productos')
+              .upload(fileName, slot.file, {
+                contentType: slot.file.type,
+                upsert: false
+              });
 
-        if (!uploadError) {
-          const { data } = supabase.storage
-            .from('fotos-productos')
-            .getPublicUrl(filePath);
-          if (data?.publicUrl) {
-            finalImageUrl = data.publicUrl;
+            if (!uploadError) {
+              const { data } = supabase.storage
+                .from('fotos-productos')
+                .getPublicUrl(fileName);
+              if (data?.publicUrl) {
+                finalUrls.push(data.publicUrl);
+                continue;
+              }
+            }
+          } catch (err) {
+            console.error(`Error al subir foto ${i + 1} a Supabase:`, err);
           }
         }
-      } catch (err) {
-        console.error('Error al subir a Supabase Storage:', err);
+
+        if (slot.url) {
+          finalUrls.push(slot.url);
+        } else if (slot.preview && !slot.preview.startsWith('data:')) {
+          finalUrls.push(slot.preview);
+        } else if (slot.preview && slot.preview.startsWith('data:')) {
+          finalUrls.push(slot.preview);
+        }
       }
     }
 
+    if (finalUrls.length === 0) {
+      if (updatedProduct.imagen_url) {
+        finalUrls = updatedProduct.imagen_url.split('|||').filter(Boolean);
+      } else {
+        finalUrls = ['https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80'];
+      }
+    }
+
+    finalUrls = finalUrls.slice(0, 3);
+
     const readyProduct = { 
       ...updatedProduct, 
-      imagen_url: finalImageUrl,
+      imagenes: finalUrls,
+      imagen_url: finalUrls.join('|||'),
       stock: parseInt(updatedProduct.stock, 10) || 0,
       agotado: (parseInt(updatedProduct.stock, 10) || 0) <= 0 || Boolean(updatedProduct.agotado)
     };

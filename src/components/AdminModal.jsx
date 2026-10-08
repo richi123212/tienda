@@ -3,9 +3,10 @@ import {
   X, PlusCircle, Trash2, Phone, Check, 
   Upload, Lock, LogOut, ArrowRight, ArrowLeft, KeyRound, User,
   Eye, EyeOff, Edit3, AlertOctagon, CheckCircle2, RotateCcw, Package,
-  Home, ChevronRight
+  Home, ChevronRight, Camera
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../supabase';
+import { getProductImages } from './ProductCard';
 
 export default function AdminModal({
   isOpen,
@@ -29,6 +30,11 @@ export default function AdminModal({
       setPasswordInput('');
       setLoginError('');
       setEditingProduct(null);
+      setPhotoSlots([
+        { file: null, preview: '', url: '' },
+        { file: null, preview: '', url: '' },
+        { file: null, preview: '', url: '' }
+      ]);
       setActiveTab('menu'); // Abre siempre en el Menú Principal
     } else {
       document.body.style.overflow = '';
@@ -59,8 +65,13 @@ export default function AdminModal({
     tipo_envio: 'Local',
     imagen_url: ''
   });
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState('');
+  
+  // Soporte de 1 a 3 fotos para cada producto
+  const [photoSlots, setPhotoSlots] = useState([
+    { file: null, preview: '', url: '' },
+    { file: null, preview: '', url: '' },
+    { file: null, preview: '', url: '' }
+  ]);
   const [submitting, setSubmitting] = useState(false);
 
   // Security credentials change
@@ -148,6 +159,7 @@ export default function AdminModal({
 
   const handleStartEdit = (product) => {
     setEditingProduct(product);
+    const existingImgs = getProductImages(product);
     setFormData({
       nombre: product.nombre,
       precio: product.precio,
@@ -157,8 +169,11 @@ export default function AdminModal({
       tipo_envio: product.tipo_envio || 'Local',
       imagen_url: product.imagen_url || ''
     });
-    setImagePreview(product.imagen_url || '');
-    setImageFile(null);
+    setPhotoSlots([
+      { file: null, preview: existingImgs[0] || '', url: existingImgs[0] || '' },
+      { file: null, preview: existingImgs[1] || '', url: existingImgs[1] || '' },
+      { file: null, preview: existingImgs[2] || '', url: existingImgs[2] || '' }
+    ]);
     setActiveTab('new'); // usa el formulario
   };
 
@@ -173,8 +188,11 @@ export default function AdminModal({
       tipo_envio: 'Local',
       imagen_url: ''
     });
-    setImagePreview('');
-    setImageFile(null);
+    setPhotoSlots([
+      { file: null, preview: '', url: '' },
+      { file: null, preview: '', url: '' },
+      { file: null, preview: '', url: '' }
+    ]);
     setActiveTab('list');
   };
 
@@ -187,17 +205,27 @@ export default function AdminModal({
     });
   };
 
-  const handleImageChange = (e) => {
+  const handleSlotFileChange = (index, e) => {
     const file = e.target.files[0];
     if (file) {
-      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result);
-        setFormData(prev => ({ ...prev, imagen_url: reader.result }));
+        setPhotoSlots((prev) => {
+          const next = [...prev];
+          next[index] = { file, preview: reader.result, url: '' };
+          return next;
+        });
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleRemoveSlot = (index) => {
+    setPhotoSlots((prev) => {
+      const next = [...prev];
+      next[index] = { file: null, preview: '', url: '' };
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -210,7 +238,7 @@ export default function AdminModal({
     setSubmitting(true);
     try {
       if (editingProduct) {
-        // ACTUALIZAR PRODUCTO EXISTENTE
+        // ACTUALIZAR PRODUCTO EXISTENTE CON HASTA 3 FOTOS
         const updated = {
           ...editingProduct,
           nombre: formData.nombre,
@@ -219,13 +247,12 @@ export default function AdminModal({
           categoria: formData.categoria,
           descripcion: formData.descripcion,
           tipo_envio: formData.tipo_envio,
-          imagen_url: formData.imagen_url,
           agotado: (parseInt(formData.stock, 10) || 0) <= 0
         };
-        await onUpdateProduct(updated, imageFile);
+        await onUpdateProduct(updated, photoSlots);
         handleCancelEdit();
       } else {
-        // CREAR NUEVO PRODUCTO
+        // CREAR NUEVO PRODUCTO CON HASTA 3 FOTOS
         const newProduct = {
           id: 'prod-' + Date.now(),
           nombre: formData.nombre,
@@ -234,11 +261,10 @@ export default function AdminModal({
           categoria: formData.categoria,
           descripcion: formData.descripcion || 'Producto disponible en catálogo.',
           tipo_envio: formData.tipo_envio,
-          imagen_url: formData.imagen_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
           agotado: (parseInt(formData.stock, 10) || 5) <= 0
         };
 
-        await onAddProduct(newProduct, imageFile);
+        await onAddProduct(newProduct, photoSlots);
         handleCancelEdit();
       }
     } catch (err) {
@@ -422,7 +448,11 @@ export default function AdminModal({
                       tipo_envio: 'Local',
                       imagen_url: ''
                     });
-                    setImagePreview('');
+                    setPhotoSlots([
+                      { file: null, preview: '', url: '' },
+                      { file: null, preview: '', url: '' },
+                      { file: null, preview: '', url: '' }
+                    ]);
                   }
                   setActiveTab('new');
                 }}
@@ -648,7 +678,11 @@ export default function AdminModal({
                           tipo_envio: 'Local',
                           imagen_url: ''
                         });
-                        setImagePreview('');
+                        setPhotoSlots([
+                          { file: null, preview: '', url: '' },
+                          { file: null, preview: '', url: '' },
+                          { file: null, preview: '', url: '' }
+                        ]);
                         setActiveTab('new');
                       }}
                     >
@@ -898,28 +932,79 @@ export default function AdminModal({
                       </div>
 
                       <div className="form-group full-width">
-                        <label className="form-label">Foto del Producto (Galería o Cámara)</label>
-                        <label className="file-dropzone">
-                          <Upload size={22} color="var(--text-secondary)" />
-                          <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                            {editingProduct ? 'Toca para cambiar la foto (o déjala tal como está)' : 'Toca aquí para seleccionar una foto de tu celular o PC'}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <label className="form-label" style={{ margin: 0 }}>
+                            Fotos del Producto (de 1 a 3 fotos)
+                          </label>
+                          <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                            {photoSlots.filter(s => s.preview || s.url).length}/3 fotos agregadas
                           </span>
-                          <input 
-                            type="file" 
-                            accept="image/*"
-                            onChange={handleImageChange}
-                            style={{ display: 'none' }}
-                          />
-                        </label>
+                        </div>
+                        <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
+                          Puedes subir hasta 3 fotos para que los clientes las deslicen en el catálogo.
+                        </p>
 
-                        {imagePreview && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '10px' }}>
-                            <img src={imagePreview} alt="Previsualización" className="preview-thumb" />
-                            <span style={{ fontSize: '0.8rem', color: 'var(--success)' }}>
-                              Foto lista para el producto
-                            </span>
-                          </div>
-                        )}
+                        <div className="admin-photo-slots-grid">
+                          {[0, 1, 2].map((idx) => {
+                            const slot = photoSlots[idx];
+                            const hasPhoto = Boolean(slot.preview || slot.url);
+
+                            return (
+                              <div key={idx} className="admin-photo-slot">
+                                <div className="photo-slot-header">
+                                  <span className="photo-slot-label">
+                                    {idx === 0 ? 'Foto 1 (Principal)' : `Foto ${idx + 1} (Opcional)`}
+                                  </span>
+                                  {hasPhoto && (
+                                    <button
+                                      type="button"
+                                      className="photo-remove-btn"
+                                      onClick={() => handleRemoveSlot(idx)}
+                                      title="Quitar esta foto"
+                                    >
+                                      <Trash2 size={12} />
+                                      <span>Quitar</span>
+                                    </button>
+                                  )}
+                                </div>
+
+                                {hasPhoto ? (
+                                  <div className="photo-slot-filled">
+                                    <img 
+                                      src={slot.preview || slot.url} 
+                                      alt={`Foto ${idx + 1}`} 
+                                      className="slot-img-preview"
+                                    />
+                                    <label className="slot-change-overlay">
+                                      <Upload size={13} />
+                                      <span>Cambiar</span>
+                                      <input 
+                                        type="file" 
+                                        accept="image/*"
+                                        onChange={(e) => handleSlotFileChange(idx, e)}
+                                        style={{ display: 'none' }}
+                                      />
+                                    </label>
+                                  </div>
+                                ) : (
+                                  <label className="photo-slot-empty">
+                                    <Camera size={19} color="var(--text-muted)" />
+                                    <span className="slot-empty-title">
+                                      {idx === 0 ? '+ Foto Principal' : `+ Foto ${idx + 1}`}
+                                    </span>
+                                    <span className="slot-empty-sub">Toca para agregar</span>
+                                    <input 
+                                      type="file" 
+                                      accept="image/*"
+                                      onChange={(e) => handleSlotFileChange(idx, e)}
+                                      style={{ display: 'none' }}
+                                    />
+                                  </label>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       <div className="form-group full-width" style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
