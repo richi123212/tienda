@@ -156,17 +156,24 @@ export default function App() {
       }
     }
 
-    const readyProduct = { ...newProduct, imagen_url: finalImageUrl };
+    const readyProduct = { 
+      ...newProduct, 
+      imagen_url: finalImageUrl,
+      stock: parseInt(newProduct.stock, 10) || 5,
+      agotado: (parseInt(newProduct.stock, 10) || 5) <= 0
+    };
 
     if (isSupabaseConfigured && supabase) {
       try {
         const { data: insertedData, error: insertError } = await supabase.from('productos').insert([{
           nombre: readyProduct.nombre,
           precio: readyProduct.precio,
+          stock: readyProduct.stock,
           categoria: readyProduct.categoria,
           descripcion: readyProduct.descripcion,
           tipo_envio: readyProduct.tipo_envio,
-          imagen_url: readyProduct.imagen_url
+          imagen_url: readyProduct.imagen_url,
+          agotado: readyProduct.agotado
         }]).select();
 
         if (!insertError && insertedData?.[0]) {
@@ -179,6 +186,93 @@ export default function App() {
     }
 
     setProducts((prev) => [readyProduct, ...prev]);
+  };
+
+  const handleUpdateProduct = async (updatedProduct, imageFile) => {
+    let finalImageUrl = updatedProduct.imagen_url;
+
+    if (isSupabaseConfigured && supabase && imageFile) {
+      try {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('fotos-productos')
+          .upload(filePath, imageFile, {
+            contentType: imageFile.type,
+            upsert: false
+          });
+
+        if (!uploadError) {
+          const { data } = supabase.storage
+            .from('fotos-productos')
+            .getPublicUrl(filePath);
+          if (data?.publicUrl) {
+            finalImageUrl = data.publicUrl;
+          }
+        }
+      } catch (err) {
+        console.error('Error al subir a Supabase Storage:', err);
+      }
+    }
+
+    const readyProduct = { 
+      ...updatedProduct, 
+      imagen_url: finalImageUrl,
+      stock: parseInt(updatedProduct.stock, 10) || 0,
+      agotado: (parseInt(updatedProduct.stock, 10) || 0) <= 0 || Boolean(updatedProduct.agotado)
+    };
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('productos')
+          .update({
+            nombre: readyProduct.nombre,
+            precio: readyProduct.precio,
+            stock: readyProduct.stock,
+            categoria: readyProduct.categoria,
+            descripcion: readyProduct.descripcion,
+            tipo_envio: readyProduct.tipo_envio,
+            imagen_url: readyProduct.imagen_url,
+            agotado: readyProduct.agotado
+          })
+          .eq('id', readyProduct.id);
+      } catch (err) {
+        console.error('Error actualizando en Supabase:', err);
+      }
+    }
+
+    setProducts((prev) => prev.map((p) => p.id === readyProduct.id ? readyProduct : p));
+  };
+
+  const handleToggleAgotado = async (product) => {
+    const stock = product.stock !== undefined ? parseInt(product.stock, 10) : 5;
+    const isCurrentlyAgotado = Boolean(product.agotado) || stock <= 0;
+    
+    const newAgotado = !isCurrentlyAgotado;
+    const newStock = newAgotado ? 0 : 5;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('productos')
+          .update({ 
+            agotado: newAgotado, 
+            stock: newStock 
+          })
+          .eq('id', product.id);
+      } catch (err) {
+        console.error('Error actualizando estado agotado en Supabase:', err);
+      }
+    }
+
+    setProducts((prev) => prev.map((p) => 
+      p.id === product.id 
+        ? { ...p, agotado: newAgotado, stock: newStock } 
+        : p
+    ));
   };
 
   const handleDeleteProduct = async (id) => {
@@ -298,6 +392,8 @@ export default function App() {
         onClose={() => setIsAdminOpen(false)}
         products={products}
         onAddProduct={handleAddProduct}
+        onUpdateProduct={handleUpdateProduct}
+        onToggleAgotado={handleToggleAgotado}
         onDeleteProduct={handleDeleteProduct}
         whatsappNumber={whatsappNumber}
         onSaveWhatsAppNumber={handleSaveWhatsAppNumber}

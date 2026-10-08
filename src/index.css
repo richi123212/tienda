@@ -912,6 +912,84 @@ body {
   vertical-align: middle;
 }
 
+.badge-stock-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.badge-stock-agotado {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.edit-btn {
+  background: #f4f4f5;
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all var(--transition-fast);
+}
+
+.edit-btn:hover {
+  background: #e4e4e7;
+  border-color: #111111;
+}
+
+.toggle-agotado-btn {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all var(--transition-fast);
+}
+
+.toggle-agotado-btn.marcar-agotado {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #b45309;
+}
+
+.toggle-agotado-btn.marcar-agotado:hover {
+  background: #fef3c7;
+}
+
+.toggle-agotado-btn.reactivar {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #059669;
+}
+
+.toggle-agotado-btn.reactivar:hover {
+  background: #d1fae5;
+}
+
 .delete-btn {
   background: var(--danger-bg);
   border: 1px solid #fecaca;
@@ -930,6 +1008,30 @@ body {
   background: var(--danger);
   color: #ffffff;
 }
+
+.card-agotado {
+  opacity: 0.9;
+}
+
+.agotado-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: #dc2626;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.img-dimmed {
+  filter: grayscale(35%);
+}
+
 
 /* ==========================================================================
    Footer

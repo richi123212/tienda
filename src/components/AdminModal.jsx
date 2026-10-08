@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, PlusCircle, Trash2, Phone, Check, 
   Upload, Lock, LogOut, ArrowRight, KeyRound, User,
-  Eye, EyeOff
+  Eye, EyeOff, Edit3, AlertOctagon, CheckCircle2, RotateCcw
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../supabase';
 
@@ -11,13 +11,24 @@ export default function AdminModal({
   onClose,
   products,
   onAddProduct,
+  onUpdateProduct,
+  onToggleAgotado,
   onDeleteProduct,
   whatsappNumber,
   onSaveWhatsAppNumber
 }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('tienda_admin_auth') === 'true';
-  });
+  // Siempre pedir inicio de sesión al abrir el modal
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsAuthenticated(false);
+      setUserInput('');
+      setPasswordInput('');
+      setLoginError('');
+      setEditingProduct(null);
+    }
+  }, [isOpen]);
   
   // Login form states
   const [userInput, setUserInput] = useState('');
@@ -25,17 +36,16 @@ export default function AdminModal({
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [activeTab, setActiveTab] = useState('new'); // 'new', 'list', 'whatsapp', 'security'
+  const [activeTab, setActiveTab] = useState('list'); // 'list', 'new', 'whatsapp', 'security'
 
-  // Security credentials change
-  const [newUsername, setNewUsername] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [credSaved, setCredSaved] = useState(false);
+  // Product Editor State
+  const [editingProduct, setEditingProduct] = useState(null);
 
-  // Form State
+  // Form State (para nuevo y para editar)
   const [formData, setFormData] = useState({
     nombre: '',
     precio: '',
+    stock: 5,
     categoria: 'Comida',
     descripcion: '',
     tipo_envio: 'Local',
@@ -44,12 +54,18 @@ export default function AdminModal({
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Security credentials change
+  const [newUsername, setNewUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [credSaved, setCredSaved] = useState(false);
+
+  // WhatsApp
   const [tempPhone, setTempPhone] = useState(whatsappNumber);
   const [phoneSaved, setPhoneSaved] = useState(false);
 
   if (!isOpen) return null;
 
-  // Credenciales personalizadas guardadas
   const getStoredCredentials = () => {
     const stored = localStorage.getItem('tienda_credentials');
     if (stored) {
@@ -67,7 +83,6 @@ export default function AdminModal({
     setIsLoggingIn(true);
     setLoginError('');
 
-    // Limpiar espacios en blanco accidentales que agregan los celulares
     const trimmedUser = userInput.trim().toLowerCase();
     const enteredPassword = passwordInput.trim();
 
@@ -80,7 +95,6 @@ export default function AdminModal({
         });
         if (!error && data?.session) {
           setIsAuthenticated(true);
-          localStorage.setItem('tienda_admin_auth', 'true');
           setIsLoggingIn(false);
           setUserInput('');
           setPasswordInput('');
@@ -91,16 +105,13 @@ export default function AdminModal({
       }
     }
 
-    // 2. Verificar credenciales locales configuradas o seguras
+    // 2. Credenciales autorizadas
     const customCreds = getStoredCredentials();
-    
-    // Lista de usuarios válidos autorizados
     const validUsers = ['richi', 'admin_boutique_mx', 'admin', 'tienda', 'richi123212'];
     if (customCreds?.usuario) {
       validUsers.push(customCreds.usuario.toLowerCase());
     }
 
-    // Lista de contraseñas válidas autorizadas
     const validPasswords = [
       'TiendaSegura2026!',
       'Kp8#mX!92$vL2026&',
@@ -116,7 +127,6 @@ export default function AdminModal({
 
     if (isUserValid && isPassValid) {
       setIsAuthenticated(true);
-      localStorage.setItem('tienda_admin_auth', 'true');
       setUserInput('');
       setPasswordInput('');
       setIsLoggingIn(false);
@@ -128,25 +138,41 @@ export default function AdminModal({
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    localStorage.removeItem('tienda_admin_auth');
     if (supabase) {
       supabase.auth.signOut().catch(() => {});
     }
   };
 
-  const handleSaveNewCredentials = (e) => {
-    e.preventDefault();
-    if (!newUsername || !newPassword) return;
-    
-    const updated = {
-      usuario: newUsername.trim(),
-      password: newPassword.trim()
-    };
-    localStorage.setItem('tienda_credentials', JSON.stringify(updated));
-    setCredSaved(true);
-    setNewUsername('');
-    setNewPassword('');
-    setTimeout(() => setCredSaved(false), 2500);
+  const handleStartEdit = (product) => {
+    setEditingProduct(product);
+    setFormData({
+      nombre: product.nombre,
+      precio: product.precio,
+      stock: product.stock !== undefined ? product.stock : 5,
+      categoria: product.categoria,
+      descripcion: product.descripcion || '',
+      tipo_envio: product.tipo_envio || 'Local',
+      imagen_url: product.imagen_url || ''
+    });
+    setImagePreview(product.imagen_url || '');
+    setImageFile(null);
+    setActiveTab('new'); // usa el formulario
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProduct(null);
+    setFormData({
+      nombre: '',
+      precio: '',
+      stock: 5,
+      categoria: 'Comida',
+      descripcion: '',
+      tipo_envio: 'Local',
+      imagen_url: ''
+    });
+    setImagePreview('');
+    setImageFile(null);
+    setActiveTab('list');
   };
 
   const handleCategoryChange = (cat) => {
@@ -180,35 +206,59 @@ export default function AdminModal({
 
     setSubmitting(true);
     try {
-      const newProduct = {
-        id: 'prod-' + Date.now(),
-        nombre: formData.nombre,
-        precio: parseFloat(formData.precio),
-        categoria: formData.categoria,
-        descripcion: formData.descripcion || 'Producto disponible en catálogo.',
-        tipo_envio: formData.tipo_envio,
-        imagen_url: formData.imagen_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80'
-      };
+      if (editingProduct) {
+        // ACTUALIZAR PRODUCTO EXISTENTE
+        const updated = {
+          ...editingProduct,
+          nombre: formData.nombre,
+          precio: parseFloat(formData.precio),
+          stock: parseInt(formData.stock, 10) || 0,
+          categoria: formData.categoria,
+          descripcion: formData.descripcion,
+          tipo_envio: formData.tipo_envio,
+          imagen_url: formData.imagen_url,
+          agotado: (parseInt(formData.stock, 10) || 0) <= 0
+        };
+        await onUpdateProduct(updated, imageFile);
+        handleCancelEdit();
+      } else {
+        // CREAR NUEVO PRODUCTO
+        const newProduct = {
+          id: 'prod-' + Date.now(),
+          nombre: formData.nombre,
+          precio: parseFloat(formData.precio),
+          stock: parseInt(formData.stock, 10) || 5,
+          categoria: formData.categoria,
+          descripcion: formData.descripcion || 'Producto disponible en catálogo.',
+          tipo_envio: formData.tipo_envio,
+          imagen_url: formData.imagen_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
+          agotado: (parseInt(formData.stock, 10) || 5) <= 0
+        };
 
-      await onAddProduct(newProduct, imageFile);
-      
-      setFormData({
-        nombre: '',
-        precio: '',
-        categoria: 'Comida',
-        descripcion: '',
-        tipo_envio: 'Local',
-        imagen_url: ''
-      });
-      setImageFile(null);
-      setImagePreview('');
-      setActiveTab('list');
+        await onAddProduct(newProduct, imageFile);
+        handleCancelEdit();
+      }
     } catch (err) {
       console.error(err);
-      alert('Error al publicar el producto.');
+      alert('Error al guardar el producto.');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSaveNewCredentials = (e) => {
+    e.preventDefault();
+    if (!newUsername || !newPassword) return;
+    
+    const updated = {
+      usuario: newUsername.trim(),
+      password: newPassword.trim()
+    };
+    localStorage.setItem('tienda_credentials', JSON.stringify(updated));
+    setCredSaved(true);
+    setNewUsername('');
+    setNewPassword('');
+    setTimeout(() => setCredSaved(false), 2500);
   };
 
   const handleSavePhone = (e) => {
@@ -230,10 +280,10 @@ export default function AdminModal({
             </div>
             <div>
               <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.35rem', lineHeight: 1.1 }}>
-                {isAuthenticated ? 'Administración' : 'Acceso Privado'}
+                {isAuthenticated ? 'Administración de Catálogo' : 'Acceso Privado'}
               </h2>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                {isAuthenticated ? 'Gestión de catálogo y pedidos' : 'Identifícate con tus credenciales'}
+                {isAuthenticated ? 'Inventario, existencias y productos' : 'Identifícate con tus credenciales'}
               </p>
             </div>
           </div>
@@ -266,13 +316,13 @@ export default function AdminModal({
           </div>
         </div>
 
-        {/* SI NO ESTA AUTENTICADO: LOGIN SEGURO CON USUARIO Y CONTRASEÑA */}
+        {/* SI NO ESTA AUTENTICADO: LOGIN */}
         {!isAuthenticated ? (
           <div className="admin-body">
             <div className="login-box">
               <h3 className="login-title">Identificación</h3>
               <p className="login-desc">
-                Ingresa con tu usuario o correo y contraseña.
+                Ingresa con tu usuario o correo y contraseña para administrar.
               </p>
 
               <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -315,7 +365,7 @@ export default function AdminModal({
                         alignItems: 'center',
                         padding: 0
                       }}
-                      title={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                      title={showPassword ? "Ocultar" : "Mostrar"}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
@@ -336,21 +386,35 @@ export default function AdminModal({
             </div>
           </div>
         ) : (
-          /* SI ESTA AUTENTICADO: TABS DE GESTION */
+          /* SI ESTA AUTENTICADO: TABS */
           <>
             <div className="admin-nav-tabs">
               <button 
-                className={`admin-nav-tab ${activeTab === 'new' ? 'active' : ''}`}
-                onClick={() => setActiveTab('new')}
-              >
-                <PlusCircle size={15} />
-                <span>Publicar Producto</span>
-              </button>
-              <button 
                 className={`admin-nav-tab ${activeTab === 'list' ? 'active' : ''}`}
-                onClick={() => setActiveTab('list')}
+                onClick={() => { setActiveTab('list'); setEditingProduct(null); }}
               >
                 <span>Inventario ({products.length})</span>
+              </button>
+              <button 
+                className={`admin-nav-tab ${activeTab === 'new' ? 'active' : ''}`}
+                onClick={() => {
+                  if (!editingProduct) {
+                    setFormData({
+                      nombre: '',
+                      precio: '',
+                      stock: 5,
+                      categoria: 'Comida',
+                      descripcion: '',
+                      tipo_envio: 'Local',
+                      imagen_url: ''
+                    });
+                    setImagePreview('');
+                  }
+                  setActiveTab('new');
+                }}
+              >
+                <PlusCircle size={15} />
+                <span>{editingProduct ? 'Editar Producto' : 'Publicar Producto'}</span>
               </button>
               <button 
                 className={`admin-nav-tab ${activeTab === 'whatsapp' ? 'active' : ''}`}
@@ -369,16 +433,170 @@ export default function AdminModal({
             </div>
 
             <div className="admin-body">
-              {/* TAB 1: FORMULARIO */}
+              {/* TAB 1: INVENTARIO CON CANTIDADES, AGOTADO Y ELIMINAR */}
+              {activeTab === 'list' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                    <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: 0 }}>
+                      Gestiona existencias, marca artículos agotados o edita detalles.
+                    </p>
+                    <button 
+                      className="submit-btn" 
+                      style={{ padding: '8px 14px', fontSize: '0.82rem' }}
+                      onClick={() => {
+                        setEditingProduct(null);
+                        setFormData({
+                          nombre: '',
+                          precio: '',
+                          stock: 5,
+                          categoria: 'Comida',
+                          descripcion: '',
+                          tipo_envio: 'Local',
+                          imagen_url: ''
+                        });
+                        setImagePreview('');
+                        setActiveTab('new');
+                      }}
+                    >
+                      <PlusCircle size={14} />
+                      <span>Nuevo Producto</span>
+                    </button>
+                  </div>
+
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="product-admin-table">
+                      <thead>
+                        <tr>
+                          <th>Producto</th>
+                          <th>Categoría</th>
+                          <th>Precio</th>
+                          <th>Existencias (Stock)</th>
+                          <th>Estado</th>
+                          <th style={{ textAlign: 'right' }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {products.map((p) => {
+                          const stock = p.stock !== undefined ? parseInt(p.stock, 10) : 5;
+                          const isAgotado = Boolean(p.agotado) || stock <= 0;
+
+                          return (
+                            <tr key={p.id}>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <img 
+                                    src={p.imagen_url} 
+                                    alt={p.nombre} 
+                                    style={{ width: '38px', height: '38px', objectFit: 'cover', borderRadius: '4px' }} 
+                                  />
+                                  <div>
+                                    <strong>{p.nombre}</strong>
+                                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                      {p.tipo_envio === 'Local' ? 'Envío Local' : 'Envío Nacional'}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td>{p.categoria}</td>
+                              <td style={{ fontWeight: 600 }}>${p.precio} MXN</td>
+                              <td>
+                                <strong style={{ color: stock <= 2 && !isAgotado ? '#b45309' : 'inherit' }}>
+                                  {stock} piezas
+                                </strong>
+                              </td>
+                              <td>
+                                {isAgotado ? (
+                                  <span className="badge-stock-agotado">
+                                    <AlertOctagon size={12} />
+                                    <span>Agotado</span>
+                                  </span>
+                                ) : (
+                                  <span className="badge-stock-ok">
+                                    <CheckCircle2 size={12} />
+                                    <span>Disponible</span>
+                                  </span>
+                                )}
+                              </td>
+                              <td>
+                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                  {/* Botón 1: Editar */}
+                                  <button 
+                                    className="edit-btn"
+                                    onClick={() => handleStartEdit(p)}
+                                    title="Modificar precio, nombre, foto o stock"
+                                  >
+                                    <Edit3 size={13} />
+                                    <span>Editar</span>
+                                  </button>
+
+                                  {/* Botón 2: Marcar Agotado / Reactivar (DIVIDIDO) */}
+                                  <button 
+                                    className={`toggle-agotado-btn ${isAgotado ? 'reactivar' : 'marcar-agotado'}`}
+                                    onClick={() => onToggleAgotado(p)}
+                                    title={isAgotado ? "Reactivar y poner en stock" : "Marcar como agotado sin borrarlo"}
+                                  >
+                                    {isAgotado ? (
+                                      <>
+                                        <RotateCcw size={13} />
+                                        <span>Reactivar</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <AlertOctagon size={13} />
+                                        <span>Agotado</span>
+                                      </>
+                                    )}
+                                  </button>
+
+                                  {/* Botón 3: Eliminar permanente */}
+                                  <button 
+                                    className="delete-btn"
+                                    onClick={() => {
+                                      if (confirm(`¿Eliminar definitivamente "${p.nombre}" de la base de datos? Esta acción no se puede deshacer.`)) {
+                                        onDeleteProduct(p.id);
+                                      }
+                                    }}
+                                    title="Eliminar de forma permanente"
+                                  >
+                                    <Trash2 size={13} />
+                                    <span>Eliminar</span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: FORMULARIO (NUEVO O EDITOR) */}
               {activeTab === 'new' && (
                 <form onSubmit={handleSubmit}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.2rem', margin: 0 }}>
+                      {editingProduct ? `Editando: ${editingProduct.nombre}` : 'Publicar Nuevo Producto'}
+                    </h3>
+                    {editingProduct && (
+                      <button 
+                        type="button" 
+                        onClick={handleCancelEdit}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.82rem' }}
+                      >
+                        Cancelar edición
+                      </button>
+                    )}
+                  </div>
+
                   <div className="form-grid">
                     <div className="form-group">
                       <label className="form-label">Nombre del Producto o Platillo</label>
                       <input 
                         type="text" 
                         className="form-control"
-                        placeholder="Ej. Vestido de Lino o Hamburguesa Angus"
+                        placeholder="Ej. Vestido de Lino o Rib Eye"
                         value={formData.nombre}
                         onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                         required
@@ -398,6 +616,19 @@ export default function AdminModal({
                     </div>
 
                     <div className="form-group">
+                      <label className="form-label">Cantidad Disponible (Stock / Piezas)</label>
+                      <input 
+                        type="number" 
+                        min="0"
+                        className="form-control"
+                        placeholder="Ej. 10"
+                        value={formData.stock}
+                        onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
                       <label className="form-label">Categoría</label>
                       <select 
                         className="form-control"
@@ -411,14 +642,14 @@ export default function AdminModal({
                       </select>
                     </div>
 
-                    <div className="form-group">
-                      <label className="form-label">Tipo de Envío</label>
+                    <div className="form-group full-width">
+                      <label className="form-label">Modalidad de Envío</label>
                       <select 
                         className="form-control"
                         value={formData.tipo_envio}
                         onChange={(e) => setFormData({ ...formData, tipo_envio: e.target.value })}
                       >
-                        <option value="Local">Envío Local (Alimentos / Mismo Día)</option>
+                        <option value="Local">Envío Local (Alimentos / Inmediato)</option>
                         <option value="Nacional">Envío Nacional por Paquetería</option>
                       </select>
                     </div>
@@ -428,7 +659,7 @@ export default function AdminModal({
                       <textarea 
                         className="form-control"
                         rows="2"
-                        placeholder="Detalles, tallas disponibles o ingredientes..."
+                        placeholder="Detalles, tallas o ingredientes..."
                         value={formData.descripcion}
                         onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                       />
@@ -439,7 +670,7 @@ export default function AdminModal({
                       <label className="file-dropzone">
                         <Upload size={22} color="var(--text-secondary)" />
                         <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                          Toca aquí para seleccionar una foto de tu celular o PC
+                          {editingProduct ? 'Toca para cambiar la foto (o déjala tal como está)' : 'Toca aquí para seleccionar una foto de tu celular o PC'}
                         </span>
                         <input 
                           type="file" 
@@ -453,76 +684,33 @@ export default function AdminModal({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '10px' }}>
                           <img src={imagePreview} alt="Previsualización" className="preview-thumb" />
                           <span style={{ fontSize: '0.8rem', color: 'var(--success)' }}>
-                            Foto seleccionada para subir
+                            Foto lista para el producto
                           </span>
                         </div>
                       )}
                     </div>
 
-                    <div className="form-group full-width" style={{ marginTop: '10px' }}>
-                      <button type="submit" className="submit-btn" disabled={submitting}>
+                    <div className="form-group full-width" style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
+                      <button type="submit" className="submit-btn" disabled={submitting} style={{ flex: 1 }}>
                         <PlusCircle size={17} />
-                        <span>{submitting ? 'Guardando en Base de Datos...' : 'Publicar en Tienda'}</span>
+                        <span>
+                          {submitting 
+                            ? 'Guardando...' 
+                            : (editingProduct ? 'Guardar Cambios del Producto' : 'Publicar Producto')}
+                        </span>
                       </button>
+                      {editingProduct && (
+                        <button 
+                          type="button" 
+                          className="action-btn"
+                          onClick={handleCancelEdit}
+                        >
+                          Cancelar
+                        </button>
+                      )}
                     </div>
                   </div>
                 </form>
-              )}
-
-              {/* TAB 2: INVENTARIO */}
-              {activeTab === 'list' && (
-                <div>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table className="product-admin-table">
-                      <thead>
-                        <tr>
-                          <th>Producto</th>
-                          <th>Categoría</th>
-                          <th>Precio</th>
-                          <th>Envío</th>
-                          <th>Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {products.map((p) => (
-                          <tr key={p.id}>
-                            <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <img 
-                                  src={p.imagen_url} 
-                                  alt={p.nombre} 
-                                  style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px' }} 
-                                />
-                                <strong>{p.nombre}</strong>
-                              </div>
-                            </td>
-                            <td>{p.categoria}</td>
-                            <td style={{ fontWeight: 600 }}>${p.precio} MXN</td>
-                            <td>
-                              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                                {p.tipo_envio}
-                              </span>
-                            </td>
-                            <td>
-                              <button 
-                                className="delete-btn"
-                                onClick={() => {
-                                  if (confirm(`¿Marcar como agotado y borrar "${p.nombre}"?`)) {
-                                    onDeleteProduct(p.id);
-                                  }
-                                }}
-                                title="Borrar artículo agotado"
-                              >
-                                <Trash2 size={13} />
-                                <span>Agotado (Borrar)</span>
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
               )}
 
               {/* TAB 3: WHATSAPP */}
