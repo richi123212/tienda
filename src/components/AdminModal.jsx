@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, PlusCircle, Trash2, Phone, Check, 
-  Upload, Lock, LogOut, ArrowRight, KeyRound, User,
-  Eye, EyeOff, Edit3, AlertOctagon, CheckCircle2, RotateCcw
+  Upload, Lock, LogOut, ArrowRight, ArrowLeft, KeyRound, User,
+  Eye, EyeOff, Edit3, AlertOctagon, CheckCircle2, RotateCcw, Package,
+  Home, ChevronRight
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../supabase';
 
@@ -28,6 +29,7 @@ export default function AdminModal({
       setPasswordInput('');
       setLoginError('');
       setEditingProduct(null);
+      setActiveTab('menu'); // Abre siempre en el Menú Principal
     } else {
       document.body.style.overflow = '';
     }
@@ -42,7 +44,7 @@ export default function AdminModal({
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [activeTab, setActiveTab] = useState('list'); // 'list', 'new', 'whatsapp', 'security'
+  const [activeTab, setActiveTab] = useState('menu'); // 'menu', 'list', 'new', 'whatsapp', 'security'
 
   // Product Editor State
   const [editingProduct, setEditingProduct] = useState(null);
@@ -64,6 +66,7 @@ export default function AdminModal({
   // Security credentials change
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [credSaved, setCredSaved] = useState(false);
 
   // WhatsApp
@@ -386,17 +389,29 @@ export default function AdminModal({
             </div>
           </div>
         ) : (
-          /* SI ESTA AUTENTICADO: TABS */
+          /* SI ESTA AUTENTICADO: NAVEGACION Y VISTAS */
           <>
-            <div className="admin-nav-tabs">
+            <div className="admin-menu-bar">
               <button 
-                className={`admin-nav-tab ${activeTab === 'list' ? 'active' : ''}`}
-                onClick={() => { setActiveTab('list'); setEditingProduct(null); }}
+                className={`menu-pill-btn ${activeTab === 'menu' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('menu'); setEditingProduct(null); }}
+                title="Panel de Control Principal"
               >
-                <span>Inventario ({products.length})</span>
+                <Home size={16} />
+                <span>Menú</span>
               </button>
+
               <button 
-                className={`admin-nav-tab ${activeTab === 'new' ? 'active' : ''}`}
+                className={`menu-pill-btn ${activeTab === 'list' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('list'); setEditingProduct(null); }}
+                title="Ver lista de productos y existencias"
+              >
+                <Package size={16} />
+                <span>Inventario</span>
+              </button>
+
+              <button 
+                className={`menu-pill-btn ${activeTab === 'new' ? 'active' : ''}`}
                 onClick={() => {
                   if (!editingProduct) {
                     setFormData({
@@ -412,37 +427,217 @@ export default function AdminModal({
                   }
                   setActiveTab('new');
                 }}
+                title="Publicar nuevo producto"
               >
-                <PlusCircle size={15} />
-                <span>{editingProduct ? 'Editar Producto' : 'Publicar Producto'}</span>
+                <PlusCircle size={16} />
+                <span>{editingProduct ? 'Editar' : 'Publicar'}</span>
               </button>
+
               <button 
-                className={`admin-nav-tab ${activeTab === 'whatsapp' ? 'active' : ''}`}
+                className={`menu-pill-btn ${activeTab === 'whatsapp' ? 'active' : ''}`}
                 onClick={() => setActiveTab('whatsapp')}
+                title="Configuración de WhatsApp"
               >
-                <Phone size={15} />
+                <Phone size={16} />
                 <span>WhatsApp</span>
               </button>
+
               <button 
-                className={`admin-nav-tab ${activeTab === 'security' ? 'active' : ''}`}
+                className={`menu-pill-btn ${activeTab === 'security' ? 'active' : ''}`}
                 onClick={() => setActiveTab('security')}
+                title="Ajustes de Seguridad"
               >
-                <KeyRound size={15} />
+                <KeyRound size={16} />
                 <span>Seguridad</span>
               </button>
             </div>
 
             <div className="admin-body">
+              {/* TAB 0: MENU PRINCIPAL / CENTRO DE CONTROL (DEFAULT) */}
+              {activeTab === 'menu' && (
+                <div className="admin-menu-view">
+                  <div className="admin-menu-welcome">
+                    <h3 className="admin-menu-title">Panel de Control</h3>
+                    <p className="admin-menu-desc">
+                      Selecciona una opción para administrar tu tienda fácilmente:
+                    </p>
+                  </div>
+
+                  <div className="admin-cards-grid">
+                    {/* Tarjeta 1: Inventario */}
+                    <div 
+                      className="admin-dashboard-card"
+                      onClick={() => { setActiveTab('list'); setEditingProduct(null); }}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="card-top-row">
+                        <div className="card-icon-box">
+                          <Package size={22} />
+                        </div>
+                        <span className="card-badge">
+                          {products.length} productos
+                        </span>
+                      </div>
+                      <div className="card-text-wrap">
+                        <h4 className="card-heading">Inventario y Existencias</h4>
+                        <p className="card-subtext">
+                          Revisa artículos, ajusta existencias (piezas), pon en pausa agotados o elimina.
+                        </p>
+                      </div>
+                      <div className="card-action-link">
+                        <span>Ver Catálogo</span>
+                        <ChevronRight size={16} />
+                      </div>
+                    </div>
+
+                    {/* Tarjeta 2: Publicar */}
+                    <div 
+                      className="admin-dashboard-card"
+                      onClick={() => {
+                        handleCancelEdit();
+                        setActiveTab('new');
+                      }}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="card-top-row">
+                        <div className="card-icon-box">
+                          <PlusCircle size={22} />
+                        </div>
+                        <span className="card-badge highlight">
+                          + Añadir
+                        </span>
+                      </div>
+                      <div className="card-text-wrap">
+                        <h4 className="card-heading">Publicar Nuevo Producto</h4>
+                        <p className="card-subtext">
+                          Sube ropa o alimentos con fotografía, precio, existencias y categoría.
+                        </p>
+                      </div>
+                      <div className="card-action-link">
+                        <span>Subir Producto</span>
+                        <ChevronRight size={16} />
+                      </div>
+                    </div>
+
+                    {/* Tarjeta 3: WhatsApp */}
+                    <div 
+                      className="admin-dashboard-card"
+                      onClick={() => setActiveTab('whatsapp')}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="card-top-row">
+                        <div className="card-icon-box whatsapp-box">
+                          <Phone size={22} />
+                        </div>
+                        <span className="card-badge whatsapp-badge">
+                          +{whatsappNumber || 'Sin número'}
+                        </span>
+                      </div>
+                      <div className="card-text-wrap">
+                        <h4 className="card-heading">WhatsApp de Pedidos</h4>
+                        <p className="card-subtext">
+                          El teléfono donde recibirás los pedidos generados por tus clientes en la bolsa.
+                        </p>
+                      </div>
+                      <div className="card-action-link">
+                        <span>Configurar WhatsApp</span>
+                        <ChevronRight size={16} />
+                      </div>
+                    </div>
+
+                    {/* Tarjeta 4: Seguridad */}
+                    <div 
+                      className="admin-dashboard-card"
+                      onClick={() => setActiveTab('security')}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="card-top-row">
+                        <div className="card-icon-box">
+                          <KeyRound size={22} />
+                        </div>
+                        <span className="card-badge">
+                          Privado
+                        </span>
+                      </div>
+                      <div className="card-text-wrap">
+                        <h4 className="card-heading">Seguridad y Contraseña</h4>
+                        <p className="card-subtext">
+                          Modifica tu usuario o clave secreta para mantener protegido el acceso.
+                        </p>
+                      </div>
+                      <div className="card-action-link">
+                        <span>Ajustes de Seguridad</span>
+                        <ChevronRight size={16} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Resumen rápido al pie */}
+                  <div className="admin-status-banner">
+                    <div className="status-item">
+                      <span className="status-label">Total en Catálogo</span>
+                      <strong className="status-val">{products.length} artículos</strong>
+                    </div>
+                    <div className="status-item">
+                      <span className="status-label">Disponibles</span>
+                      <strong className="status-val" style={{ color: 'var(--success)' }}>
+                        {products.filter(p => !p.agotado && (p.stock !== undefined ? p.stock > 0 : true)).length} en stock
+                      </strong>
+                    </div>
+                    <div className="status-item">
+                      <span className="status-label">Agotados</span>
+                      <strong className="status-val" style={{ color: 'var(--danger)' }}>
+                        {products.filter(p => p.agotado || (p.stock !== undefined && p.stock <= 0)).length} agotados
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* TAB 1: INVENTARIO CON CANTIDADES, AGOTADO Y ELIMINAR */}
               {activeTab === 'list' && (
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                    <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: 0 }}>
-                      Gestiona existencias, marca artículos agotados o edita detalles.
-                    </p>
+                  <div className="section-nav-header">
+                    <button 
+                      type="button" 
+                      className="back-nav-btn"
+                      onClick={() => setActiveTab('menu')}
+                    >
+                      <ArrowLeft size={15} />
+                      <span>Volver al Menú</span>
+                    </button>
+                    <span className="section-badge-info">{products.length} Productos</span>
+                  </div>
+
+                  {/* Resumen rápido del negocio */}
+                  <div className="admin-quick-dashboard">
+                    <div className="summary-pill">
+                      <span className="summary-num">{products.length}</span>
+                      <span className="summary-label">Artículos</span>
+                    </div>
+                    <div className="summary-pill">
+                      <span className="summary-num" style={{ color: 'var(--success)' }}>
+                        {products.filter(p => !p.agotado && (p.stock !== undefined ? p.stock > 0 : true)).length}
+                      </span>
+                      <span className="summary-label">En Stock</span>
+                    </div>
+                    <div className="summary-pill">
+                      <span className="summary-num" style={{ color: 'var(--danger)' }}>
+                        {products.filter(p => p.agotado || (p.stock !== undefined && p.stock <= 0)).length}
+                      </span>
+                      <span className="summary-label">Agotados</span>
+                    </div>
+                  </div>
+
+                  {/* Accesos directos para que nada quede olvidado */}
+                  <div className="admin-quick-shortcuts">
                     <button 
                       className="submit-btn" 
-                      style={{ padding: '8px 14px', fontSize: '0.82rem' }}
+                      style={{ padding: '9px 14px', fontSize: '0.82rem', flex: '1 1 auto' }}
                       onClick={() => {
                         setEditingProduct(null);
                         setFormData({
@@ -458,8 +653,30 @@ export default function AdminModal({
                         setActiveTab('new');
                       }}
                     >
-                      <PlusCircle size={14} />
-                      <span>Nuevo Producto</span>
+                      <PlusCircle size={15} />
+                      <span>+ Publicar Nuevo</span>
+                    </button>
+
+                    <button 
+                      type="button" 
+                      className="action-btn"
+                      style={{ fontSize: '0.8rem', padding: '0 12px', height: '38px' }}
+                      onClick={() => setActiveTab('whatsapp')}
+                      title="Configurar teléfono de WhatsApp"
+                    >
+                      <Phone size={14} />
+                      <span>WhatsApp</span>
+                    </button>
+
+                    <button 
+                      type="button" 
+                      className="action-btn"
+                      style={{ fontSize: '0.8rem', padding: '0 12px', height: '38px' }}
+                      onClick={() => setActiveTab('security')}
+                      title="Cambiar contraseña"
+                    >
+                      <KeyRound size={14} />
+                      <span>Seguridad</span>
                     </button>
                   </div>
 
@@ -574,212 +791,311 @@ export default function AdminModal({
 
               {/* TAB 2: FORMULARIO (NUEVO O EDITOR) */}
               {activeTab === 'new' && (
-                <form onSubmit={handleSubmit}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.2rem', margin: 0 }}>
-                      {editingProduct ? `Editando: ${editingProduct.nombre}` : 'Publicar Nuevo Producto'}
-                    </h3>
-                    {editingProduct && (
-                      <button 
-                        type="button" 
-                        onClick={handleCancelEdit}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.82rem' }}
-                      >
-                        Cancelar edición
-                      </button>
-                    )}
+                <div>
+                  <div className="section-nav-header">
+                    <button 
+                      type="button" 
+                      className="back-nav-btn"
+                      onClick={() => {
+                        handleCancelEdit();
+                        setActiveTab('menu');
+                      }}
+                    >
+                      <ArrowLeft size={15} />
+                      <span>Volver al Menú</span>
+                    </button>
+                    <span className="section-badge-info">{editingProduct ? 'Editar Producto' : 'Nuevo Producto'}</span>
                   </div>
 
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label className="form-label">Nombre del Producto o Platillo</label>
-                      <input 
-                        type="text" 
-                        className="form-control"
-                        placeholder="Ej. Vestido de Lino o Rib Eye"
-                        value={formData.nombre}
-                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">Precio ($ MXN)</label>
-                      <input 
-                        type="number" 
-                        className="form-control"
-                        placeholder="Ej. 450"
-                        value={formData.precio}
-                        onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">Cantidad Disponible (Stock / Piezas)</label>
-                      <input 
-                        type="number" 
-                        min="0"
-                        className="form-control"
-                        placeholder="Ej. 10"
-                        value={formData.stock}
-                        onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">Categoría</label>
-                      <select 
-                        className="form-control"
-                        value={formData.categoria}
-                        onChange={(e) => handleCategoryChange(e.target.value)}
-                      >
-                        <option value="Comida">Comida</option>
-                        <option value="Ropa Mujer">Ropa Mujer</option>
-                        <option value="Ropa Hombre">Ropa Hombre</option>
-                        <option value="Lucha Libre">Lucha Libre</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group full-width">
-                      <label className="form-label">Modalidad de Envío</label>
-                      <select 
-                        className="form-control"
-                        value={formData.tipo_envio}
-                        onChange={(e) => setFormData({ ...formData, tipo_envio: e.target.value })}
-                      >
-                        <option value="Local">Envío Local (Alimentos / Inmediato)</option>
-                        <option value="Nacional">Envío Nacional por Paquetería</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group full-width">
-                      <label className="form-label">Descripción</label>
-                      <textarea 
-                        className="form-control"
-                        rows="2"
-                        placeholder="Detalles, tallas o ingredientes..."
-                        value={formData.descripcion}
-                        onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="form-group full-width">
-                      <label className="form-label">Foto del Producto (Galería o Cámara)</label>
-                      <label className="file-dropzone">
-                        <Upload size={22} color="var(--text-secondary)" />
-                        <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                          {editingProduct ? 'Toca para cambiar la foto (o déjala tal como está)' : 'Toca aquí para seleccionar una foto de tu celular o PC'}
-                        </span>
-                        <input 
-                          type="file" 
-                          accept="image/*"
-                          onChange={handleImageChange}
-                          style={{ display: 'none' }}
-                        />
-                      </label>
-
-                      {imagePreview && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '10px' }}>
-                          <img src={imagePreview} alt="Previsualización" className="preview-thumb" />
-                          <span style={{ fontSize: '0.8rem', color: 'var(--success)' }}>
-                            Foto lista para el producto
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="form-group full-width" style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
-                      <button type="submit" className="submit-btn" disabled={submitting} style={{ flex: 1 }}>
-                        <PlusCircle size={17} />
-                        <span>
-                          {submitting 
-                            ? 'Guardando...' 
-                            : (editingProduct ? 'Guardar Cambios del Producto' : 'Publicar Producto')}
-                        </span>
-                      </button>
+                  <form onSubmit={handleSubmit}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.2rem', margin: 0 }}>
+                        {editingProduct ? `Editando: ${editingProduct.nombre}` : 'Publicar Nuevo Producto'}
+                      </h3>
                       {editingProduct && (
                         <button 
                           type="button" 
-                          className="action-btn"
                           onClick={handleCancelEdit}
+                          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.82rem' }}
                         >
-                          Cancelar
+                          Cancelar edición
                         </button>
                       )}
                     </div>
-                  </div>
-                </form>
+
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label className="form-label">Nombre del Producto o Platillo</label>
+                        <input 
+                          type="text" 
+                          className="form-control"
+                          placeholder="Ej. Vestido de Lino o Rib Eye"
+                          value={formData.nombre}
+                          onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Precio ($ MXN)</label>
+                        <input 
+                          type="number" 
+                          className="form-control"
+                          placeholder="Ej. 450"
+                          value={formData.precio}
+                          onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Cantidad Disponible (Stock / Piezas)</label>
+                        <input 
+                          type="number" 
+                          min="0"
+                          className="form-control"
+                          placeholder="Ej. 10"
+                          value={formData.stock}
+                          onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Categoría</label>
+                        <select 
+                          className="form-control"
+                          value={formData.categoria}
+                          onChange={(e) => handleCategoryChange(e.target.value)}
+                        >
+                          <option value="Comida">Comida</option>
+                          <option value="Ropa Mujer">Ropa Mujer</option>
+                          <option value="Ropa Hombre">Ropa Hombre</option>
+                          <option value="Lucha Libre">Lucha Libre</option>
+                        </select>
+                      </div>
+
+                      <div className="form-group full-width">
+                        <label className="form-label">Modalidad de Envío</label>
+                        <select 
+                          className="form-control"
+                          value={formData.tipo_envio}
+                          onChange={(e) => setFormData({ ...formData, tipo_envio: e.target.value })}
+                        >
+                          <option value="Local">Envío Local (Alimentos / Inmediato)</option>
+                          <option value="Nacional">Envío Nacional por Paquetería</option>
+                        </select>
+                      </div>
+
+                      <div className="form-group full-width">
+                        <label className="form-label">Descripción</label>
+                        <textarea 
+                          className="form-control"
+                          rows="2"
+                          placeholder="Detalles, tallas o ingredientes..."
+                          value={formData.descripcion}
+                          onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="form-group full-width">
+                        <label className="form-label">Foto del Producto (Galería o Cámara)</label>
+                        <label className="file-dropzone">
+                          <Upload size={22} color="var(--text-secondary)" />
+                          <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                            {editingProduct ? 'Toca para cambiar la foto (o déjala tal como está)' : 'Toca aquí para seleccionar una foto de tu celular o PC'}
+                          </span>
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            style={{ display: 'none' }}
+                          />
+                        </label>
+
+                        {imagePreview && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '10px' }}>
+                            <img src={imagePreview} alt="Previsualización" className="preview-thumb" />
+                            <span style={{ fontSize: '0.8rem', color: 'var(--success)' }}>
+                              Foto lista para el producto
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="form-group full-width" style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
+                        <button type="submit" className="submit-btn" disabled={submitting} style={{ flex: 1 }}>
+                          <PlusCircle size={17} />
+                          <span>
+                            {submitting 
+                              ? 'Guardando...' 
+                              : (editingProduct ? 'Guardar Cambios del Producto' : 'Publicar Producto')}
+                          </span>
+                        </button>
+                        {editingProduct && (
+                          <button 
+                            type="button" 
+                            className="action-btn"
+                            onClick={handleCancelEdit}
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </form>
+                </div>
               )}
 
               {/* TAB 3: WHATSAPP */}
               {activeTab === 'whatsapp' && (
-                <div style={{ maxWidth: '480px' }}>
-                  <form onSubmit={handleSavePhone}>
-                    <div className="form-group" style={{ marginBottom: '16px' }}>
-                      <label className="form-label">Número de WhatsApp de Ventas</label>
-                      <input 
-                        type="text" 
-                        className="form-control"
-                        value={tempPhone}
-                        onChange={(e) => setTempPhone(e.target.value)}
-                        placeholder="Ejemplo: 525512345678"
-                        required
-                      />
-                      <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                        Incluye código de país (52 para México).
-                      </small>
+                <div>
+                  <div className="section-nav-header">
+                    <button 
+                      type="button" 
+                      className="back-nav-btn"
+                      onClick={() => setActiveTab('menu')}
+                    >
+                      <ArrowLeft size={15} />
+                      <span>Volver al Menú</span>
+                    </button>
+                    <span className="section-badge-info">WhatsApp de Pedidos</span>
+                  </div>
+
+                  <div className="settings-card-box">
+                    <div className="settings-card-header">
+                      <div className="settings-icon-pill whatsapp-icon-pill">
+                        <Phone size={22} />
+                      </div>
+                      <div>
+                        <h3 className="settings-box-title">
+                          WhatsApp para Pedidos
+                        </h3>
+                        <p className="settings-box-desc">
+                          A este número telefónico llegarán automáticamente las compras que tus clientes armen en la bolsa.
+                        </p>
+                      </div>
                     </div>
 
-                    <button type="submit" className="submit-btn">
-                      <Check size={16} />
-                      <span>{phoneSaved ? 'Guardado correctamente' : 'Guardar Número'}</span>
-                    </button>
-                  </form>
+                    <div className="settings-preview-bubble">
+                      <span className="bubble-label">Número activo actualmente:</span>
+                      <strong className="bubble-phone">
+                        +{tempPhone || whatsappNumber}
+                      </strong>
+                    </div>
+
+                    <form onSubmit={handleSavePhone} style={{ marginTop: '18px' }}>
+                      <div className="form-group" style={{ marginBottom: '16px' }}>
+                        <label className="form-label">Número telefónico (con código de país)</label>
+                        <input 
+                          type="text" 
+                          className="form-control"
+                          value={tempPhone}
+                          onChange={(e) => setTempPhone(e.target.value)}
+                          placeholder="Ejemplo: 525512345678"
+                          required
+                          style={{ fontSize: '1rem', padding: '12px 14px' }}
+                        />
+                        <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem', display: 'block', marginTop: '6px' }}>
+                          Escribe los 10 dígitos de tu celular precedidos por el código de país (ej. <strong>52</strong> para México). No incluyas espacios ni símbolos "+".
+                        </small>
+                      </div>
+
+                      <button type="submit" className="submit-btn" style={{ width: '100%', padding: '12px' }}>
+                        <Check size={17} />
+                        <span>{phoneSaved ? '¡Número guardado correctamente!' : 'Guardar Número de WhatsApp'}</span>
+                      </button>
+                    </form>
+                  </div>
                 </div>
               )}
 
               {/* TAB 4: SEGURIDAD (CAMBIAR USUARIO Y CONTRASEÑA) */}
               {activeTab === 'security' && (
-                <div style={{ maxWidth: '480px' }}>
-                  <h4 style={{ fontSize: '1rem', marginBottom: '8px', color: 'var(--text-primary)' }}>
-                    Personalizar Usuario y Contraseña
-                  </h4>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '18px' }}>
-                    Puedes cambiar tu usuario y clave privada en cualquier momento.
-                  </p>
-
-                  <form onSubmit={handleSaveNewCredentials}>
-                    <div className="form-group" style={{ marginBottom: '14px' }}>
-                      <label className="form-label">Nuevo Usuario</label>
-                      <input 
-                        type="text" 
-                        className="form-control"
-                        placeholder="Ejemplo: mi_usuario_privado"
-                        value={newUsername}
-                        onChange={(e) => setNewUsername(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div className="form-group" style={{ marginBottom: '18px' }}>
-                      <label className="form-label">Nueva Contraseña</label>
-                      <input 
-                        type="password" 
-                        className="form-control"
-                        placeholder="Ingresa tu nueva clave segura"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <button type="submit" className="submit-btn">
-                      <Check size={16} />
-                      <span>{credSaved ? '¡Credenciales actualizadas!' : 'Guardar Nuevas Credenciales'}</span>
+                <div>
+                  <div className="section-nav-header">
+                    <button 
+                      type="button" 
+                      className="back-nav-btn"
+                      onClick={() => setActiveTab('menu')}
+                    >
+                      <ArrowLeft size={15} />
+                      <span>Volver al Menú</span>
                     </button>
-                  </form>
+                    <span className="section-badge-info">Ajustes de Seguridad</span>
+                  </div>
+
+                  <div className="settings-card-box">
+                    <div className="settings-card-header">
+                      <div className="settings-icon-pill">
+                        <KeyRound size={22} />
+                      </div>
+                      <div>
+                        <h3 className="settings-box-title">
+                          Cambiar Usuario y Contraseña
+                        </h3>
+                        <p className="settings-box-desc">
+                          Personaliza tus credenciales para acceder al panel privado de administración.
+                        </p>
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleSaveNewCredentials} style={{ marginTop: '18px' }}>
+                      <div className="form-group" style={{ marginBottom: '14px' }}>
+                        <label className="form-label">Nuevo Usuario Administrador</label>
+                        <input 
+                          type="text" 
+                          className="form-control"
+                          placeholder="Ejemplo: mi_usuario_secreto"
+                          value={newUsername}
+                          onChange={(e) => setNewUsername(e.target.value)}
+                          required
+                          style={{ fontSize: '0.95rem', padding: '11px 14px' }}
+                        />
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: '18px' }}>
+                        <label className="form-label">Nueva Contraseña</label>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input 
+                            type={showNewPassword ? 'text' : 'password'} 
+                            className="form-control"
+                            placeholder="Ingresa tu nueva clave privada"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            required
+                            style={{ fontSize: '0.95rem', padding: '11px 44px 11px 14px', width: '100%' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            style={{
+                              position: 'absolute',
+                              right: '12px',
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: 'var(--text-muted)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: 0
+                            }}
+                            title={showNewPassword ? "Ocultar" : "Mostrar"}
+                          >
+                            {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
+                        <small style={{ color: 'var(--text-muted)', fontSize: '0.76rem', display: 'block', marginTop: '6px' }}>
+                          Puedes usar letras, números y símbolos. Se aplicará de inmediato al guardar.
+                        </small>
+                      </div>
+
+                      <button type="submit" className="submit-btn" style={{ width: '100%', padding: '12px' }}>
+                        <Check size={17} />
+                        <span>{credSaved ? '¡Credenciales actualizadas correctamente!' : 'Guardar Nuevas Credenciales'}</span>
+                      </button>
+                    </form>
+                  </div>
                 </div>
               )}
             </div>
