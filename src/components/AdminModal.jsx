@@ -385,11 +385,7 @@ export default function AdminModal({
     e.preventDefault();
     let finalImageUrl = newBannerData.imagen_url;
 
-    if (bannerPreview) {
-      finalImageUrl = bannerPreview;
-    }
-
-    if (!finalImageUrl) {
+    if (!finalImageUrl && !bannerFile && !bannerPreview) {
       alert('Por favor selecciona una imagen para el banner o escribe una URL.');
       return;
     }
@@ -398,13 +394,13 @@ export default function AdminModal({
       id: 'banner-' + Date.now(),
       titulo: newBannerData.titulo || 'Promoción Universo Bonito',
       subtitulo: newBannerData.subtitulo || '',
-      imagen_url: finalImageUrl,
+      imagen_url: finalImageUrl || bannerPreview || '',
       categoria_destino: newBannerData.categoria_destino || categories?.[0] || 'Lotes de Ropa',
       boton_texto: newBannerData.boton_texto || 'Ver Promoción',
       activo: true
     };
 
-    onAddBanner(newBanner);
+    await onAddBanner(newBanner, bannerFile);
     setNewBannerData({
       titulo: '',
       subtitulo: '',

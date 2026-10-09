@@ -16,7 +16,7 @@ import {
   DEFAULT_WHATSAPP_TEMPLATE,
   INITIAL_LOTES_CONFIG
 } from './data/initialProducts';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabase, isSupabaseConfigured, uploadProductPhoto, uploadBannerPhoto } from './supabase';
 import { Search, AlertCircle, ChevronLeft, ChevronRight, ArrowRight, Truck, ShieldCheck, HeartHandshake } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 6;
@@ -91,64 +91,134 @@ export default function App() {
     title: ''
   });
 
-  // Forzar actualización de versión para navegadores que visitaron la versión anterior
+  // Cargar y sincronizar con Supabase en tiempo real (Productos, Categorías, Banners y Configuración)
   useEffect(() => {
-    const isUpdated = localStorage.getItem('universo_bonito_v2_migrated');
-    if (!isUpdated) {
-      localStorage.setItem('universo_bonito_v2_migrated', 'true');
-      localStorage.setItem('catalogo_productos', JSON.stringify(INITIAL_PRODUCTS));
-      localStorage.setItem('catalogo_categorias', JSON.stringify(INITIAL_CATEGORIES));
-      localStorage.setItem('catalogo_banners', JSON.stringify(INITIAL_BANNERS));
-      localStorage.setItem('tienda_social_links', JSON.stringify(INITIAL_SOCIAL_LINKS));
-      localStorage.setItem('tienda_horario_comida', JSON.stringify(INITIAL_FOOD_SCHEDULE));
-      localStorage.setItem('whatsapp_ventas', '525620068886');
-      setProducts(INITIAL_PRODUCTS);
-      setCategories(INITIAL_CATEGORIES);
-      setBanners(INITIAL_BANNERS);
-      setSocialLinks(INITIAL_SOCIAL_LINKS);
-      setFoodSchedule(INITIAL_FOOD_SCHEDULE);
-      setWhatsappNumber('525620068886');
-    }
-  }, []);
+    if (!isSupabaseConfigured || !supabase) return;
 
-  // Cargar y sincronizar con Supabase en tiempo real si está configurado
-  useEffect(() => {
-    if (isSupabaseConfigured && supabase) {
-      async function syncSupabase() {
-        try {
-          const { data, error } = await supabase
-            .from('productos')
-            .select('*')
-            .order('creado_en', { ascending: false });
+    // Sincronizar Productos
+    async function syncProducts() {
+      try {
+        const { data, error } = await supabase
+          .from('productos')
+          .select('*')
+          .order('creado_en', { ascending: false });
 
-          if (!error && data && data.length > 0) {
-            setProducts(data);
-          }
-        } catch (err) {
-          console.warn('Error sincronizando con Supabase, usando estado local:', err);
+        if (!error && data && data.length > 0) {
+          setProducts(data);
+          localStorage.setItem('catalogo_productos', JSON.stringify(data));
         }
+      } catch (err) {
+        console.warn('Error sincronizando productos con Supabase:', err);
       }
-
-      syncSupabase();
-
-      const channel = supabase
-        .channel('productos_realtime')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'productos' },
-          () => {
-            syncSupabase();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
     }
+
+    // Sincronizar Categorías
+    async function syncCategories() {
+      try {
+        const { data, error } = await supabase
+          .from('categorias')
+          .select('*')
+          .order('orden', { ascending: true });
+
+        if (!error && data && data.length > 0) {
+          const catNames = data.map(c => c.nombre);
+          setCategories(catNames);
+          localStorage.setItem('catalogo_categorias', JSON.stringify(catNames));
+        }
+      } catch (err) {
+        console.warn('Error sincronizando categorías con Supabase:', err);
+      }
+    }
+
+    // Sincronizar Banners
+    async function syncBanners() {
+      try {
+        const { data, error } = await supabase
+          .from('banners')
+          .select('*')
+          .order('creado_en', { ascending: false });
+
+        if (!error && data && data.length > 0) {
+          setBanners(data);
+          localStorage.setItem('catalogo_banners', JSON.stringify(data));
+        }
+      } catch (err) {
+        console.warn('Error sincronizando banners con Supabase:', err);
+      }
+    }
+
+    // Sincronizar Configuración General
+    async function syncConfig() {
+      try {
+        const { data, error } = await supabase
+          .from('tienda_config')
+          .select('*');
+
+        if (!error && data && data.length > 0) {
+          data.forEach(({ clave, valor }) => {
+            if (clave === 'whatsapp_ventas' && valor) {
+              setWhatsappNumber(valor);
+              localStorage.setItem('whatsapp_ventas', valor);
+            }
+            if (clave === 'whatsapp_mensaje_plantilla' && valor) {
+              setWhatsappTemplate(valor);
+              localStorage.setItem('whatsapp_mensaje_plantilla', valor);
+            }
+            if (clave === 'tienda_social_links' && valor) {
+              setSocialLinks(valor);
+              localStorage.setItem('tienda_social_links', JSON.stringify(valor));
+            }
+            if (clave === 'tienda_horario_comida' && valor) {
+              setFoodSchedule(valor);
+              localStorage.setItem('tienda_horario_comida', JSON.stringify(valor));
+            }
+            if (clave === 'tienda_config_lotes' && valor) {
+              setLotesConfig(valor);
+              localStorage.setItem('tienda_config_lotes', JSON.stringify(valor));
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Error sincronizando configuración con Supabase:', err);
+      }
+    }
+
+    // Carga inicial directa
+    syncProducts();
+    syncCategories();
+    syncBanners();
+    syncConfig();
+
+    // Canales de Realtime para escuchar cambios de inmediato
+    const channelProds = supabase
+      .channel('prods_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'productos' }, syncProducts)
+      .subscribe();
+
+    const channelCats = supabase
+      .channel('cats_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categorias' }, syncCategories)
+      .subscribe();
+
+    const channelBanners = supabase
+      .channel('banners_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'banners' }, syncBanners)
+      .subscribe();
+
+    const channelConfig = supabase
+      .channel('config_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tienda_config' }, syncConfig)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channelProds);
+      supabase.removeChannel(channelCats);
+      supabase.removeChannel(channelBanners);
+      supabase.removeChannel(channelConfig);
+    };
   }, []);
 
-  // Persistencia en localStorage
+  // Persistencia de respaldo en localStorage
   useEffect(() => {
     localStorage.setItem('catalogo_productos', JSON.stringify(products));
   }, [products]);
@@ -177,57 +247,193 @@ export default function App() {
     setCurrentPage(1);
   }, [selectedCategory, searchQuery]);
 
-  // Manejo de Categorías Dinámicas
-  const handleAddCategory = (newCat) => {
+  // Manejo de Categorías Dinámicas con persistencia en Supabase
+  const handleAddCategory = async (newCat) => {
     setCategories((prev) => [...prev, newCat]);
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('categorias').insert([{ nombre: newCat, orden: categories.length }]);
+      } catch (err) {
+        console.error('Error insertando categoría en Supabase:', err);
+      }
+    }
   };
 
-  const handleDeleteCategory = (catToDelete) => {
+  const handleDeleteCategory = async (catToDelete) => {
     setCategories((prev) => prev.filter(c => c !== catToDelete));
     if (selectedCategory === catToDelete) {
       setSelectedCategory('Todas');
     }
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('categorias').delete().eq('nombre', catToDelete);
+      } catch (err) {
+        console.error('Error borrando categoría en Supabase:', err);
+      }
+    }
   };
 
-  // Manejo de Banners Horizontales
-  const handleAddBanner = (newBanner) => {
-    setBanners((prev) => [newBanner, ...prev]);
+  // Manejo de Banners Horizontales con subida de fotos a Supabase
+  const handleAddBanner = async (newBanner, bannerFile = null) => {
+    let finalImageUrl = newBanner.imagen_url;
+
+    if (bannerFile && isSupabaseConfigured && supabase) {
+      const publicUrl = await uploadBannerPhoto(bannerFile);
+      if (publicUrl) {
+        finalImageUrl = publicUrl;
+      }
+    }
+
+    const readyBanner = { ...newBanner, imagen_url: finalImageUrl };
+    setBanners((prev) => [readyBanner, ...prev]);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('banners').insert([{
+          id: readyBanner.id,
+          titulo: readyBanner.titulo,
+          subtitulo: readyBanner.subtitulo || '',
+          imagen_url: readyBanner.imagen_url,
+          activo: readyBanner.activo !== false,
+          enlace: readyBanner.categoria_destino || readyBanner.enlace || ''
+        }]);
+      } catch (err) {
+        console.error('Error guardando banner en Supabase:', err);
+      }
+    }
   };
 
-  const handleDeleteBanner = (bannerId) => {
+  const handleDeleteBanner = async (bannerId) => {
     setBanners((prev) => prev.filter(b => b.id !== bannerId));
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('banners').delete().eq('id', bannerId);
+      } catch (err) {
+        console.error('Error eliminando banner en Supabase:', err);
+      }
+    }
   };
 
-  const handleToggleBannerActive = (bannerId) => {
-    setBanners((prev) => prev.map(b => 
-      b.id === bannerId ? { ...b, activo: b.activo === false ? true : false } : b
-    ));
+  const handleToggleBannerActive = async (bannerId) => {
+    let updatedActivo = true;
+    setBanners((prev) => prev.map(b => {
+      if (b.id === bannerId) {
+        updatedActivo = b.activo === false;
+        return { ...b, activo: updatedActivo };
+      }
+      return b;
+    }));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('banners').update({ activo: updatedActivo }).eq('id', bannerId);
+      } catch (err) {
+        console.error('Error actualizando activo de banner en Supabase:', err);
+      }
+    }
   };
 
-  // Manejo de Enlaces de Redes
-  const handleAddSocialLink = (newLink) => {
-    setSocialLinks((prev) => [...prev, newLink]);
+  // Manejo de Enlaces de Redes con persistencia en Supabase
+  const handleAddSocialLink = async (newLink) => {
+    const updated = [...socialLinks, newLink];
+    setSocialLinks(updated);
+    localStorage.setItem('tienda_social_links', JSON.stringify(updated));
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('tienda_config').upsert({
+          clave: 'tienda_social_links',
+          valor: updated,
+          actualizado_en: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error('Error guardando redes en Supabase:', err);
+      }
+    }
   };
 
-  const handleDeleteSocialLink = (linkId) => {
-    setSocialLinks((prev) => prev.filter(l => (l.id || l.url) !== linkId));
+  const handleDeleteSocialLink = async (linkId) => {
+    const updated = socialLinks.filter(l => (l.id || l.url) !== linkId);
+    setSocialLinks(updated);
+    localStorage.setItem('tienda_social_links', JSON.stringify(updated));
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('tienda_config').upsert({
+          clave: 'tienda_social_links',
+          valor: updated,
+          actualizado_en: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error('Error borrando red social en Supabase:', err);
+      }
+    }
   };
 
-  // Manejo de Horarios
-  const handleUpdateFoodSchedule = (updatedSchedule) => {
+  // Manejo de Horarios con persistencia en Supabase
+  const handleUpdateFoodSchedule = async (updatedSchedule) => {
     setFoodSchedule(updatedSchedule);
+    localStorage.setItem('tienda_horario_comida', JSON.stringify(updatedSchedule));
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('tienda_config').upsert({
+          clave: 'tienda_horario_comida',
+          valor: updatedSchedule,
+          actualizado_en: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error('Error guardando horario en Supabase:', err);
+      }
+    }
   };
 
-  // Manejo de Plantilla de Mensaje de WhatsApp
-  const handleSaveWhatsAppTemplate = (newTemplate) => {
+  // Manejo de Número de WhatsApp Oficial con persistencia en Supabase
+  const handleSaveWhatsAppNumber = async (num) => {
+    setWhatsappNumber(num);
+    localStorage.setItem('whatsapp_ventas', num);
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('tienda_config').upsert({
+          clave: 'whatsapp_ventas',
+          valor: num,
+          actualizado_en: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error('Error guardando whatsapp en Supabase:', err);
+      }
+    }
+  };
+
+  // Manejo de Plantilla de Mensaje de WhatsApp con persistencia en Supabase
+  const handleSaveWhatsAppTemplate = async (newTemplate) => {
     setWhatsappTemplate(newTemplate);
     localStorage.setItem('whatsapp_mensaje_plantilla', newTemplate);
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('tienda_config').upsert({
+          clave: 'whatsapp_mensaje_plantilla',
+          valor: newTemplate,
+          actualizado_en: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error('Error guardando plantilla de WhatsApp en Supabase:', err);
+      }
+    }
   };
 
-  // Manejo de Configuración de Lotes de Ropa
-  const handleSaveLotesConfig = (newConfig) => {
+  // Manejo de Configuración de Lotes de Ropa con persistencia en Supabase
+  const handleSaveLotesConfig = async (newConfig) => {
     setLotesConfig(newConfig);
     localStorage.setItem('tienda_config_lotes', JSON.stringify(newConfig));
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('tienda_config').upsert({
+          clave: 'tienda_config_lotes',
+          valor: newConfig,
+          actualizado_en: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error('Error guardando lotes en Supabase:', err);
+      }
+    }
   };
 
   // Manejar Carrito con límite estricto de existencias
@@ -283,7 +489,7 @@ export default function App() {
     setCart([]);
   };
 
-  // Manejar Administración de Productos
+  // Manejar Administración de Productos con subida de fotos a Supabase Storage
   const handleAddProduct = async (newProduct, photoSlots = []) => {
     let finalUrls = [];
 
@@ -292,28 +498,21 @@ export default function App() {
         const slot = photoSlots[i];
         if (!slot) continue;
 
+        // Subir foto directamente a Supabase Storage si es un archivo seleccionado
         if (slot.file && isSupabaseConfigured && supabase) {
           try {
-            const fileExt = slot.file.name.split('.').pop();
-            const fileName = `${Date.now()}-${i}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-            const { error: uploadError } = await supabase.storage
-              .from('fotos-productos')
-              .upload(fileName, slot.file, { contentType: slot.file.type, upsert: false });
-
-            if (!uploadError) {
-              const { data } = supabase.storage.from('fotos-productos').getPublicUrl(fileName);
-              if (data?.publicUrl) {
-                finalUrls.push(data.publicUrl);
-                continue;
-              }
+            const publicUrl = await uploadProductPhoto(slot.file, i);
+            if (publicUrl) {
+              finalUrls.push(publicUrl);
+              continue;
             }
           } catch (err) {
-            console.error(`Error al subir foto ${i + 1}:`, err);
+            console.error(`Error al subir foto ${i + 1} a Supabase:`, err);
           }
         }
 
-        if (slot.url) finalUrls.push(slot.url);
-        else if (slot.preview) finalUrls.push(slot.preview);
+        if (slot.url && !slot.url.startsWith('blob:')) finalUrls.push(slot.url);
+        else if (slot.preview && !slot.preview.startsWith('blob:')) finalUrls.push(slot.preview);
       }
     }
 
@@ -340,17 +539,21 @@ export default function App() {
         const { data: insertedData, error: insertError } = await supabase.from('productos').insert([{
           nombre: readyProduct.nombre,
           precio: readyProduct.precio,
+          precio_anterior: readyProduct.precio_anterior || null,
           stock: readyProduct.stock,
           categoria: readyProduct.categoria,
           descripcion: readyProduct.descripcion,
           tipo_envio: readyProduct.tipo_envio,
           imagen_url: readyProduct.imagen_url,
+          imagenes: readyProduct.imagenes,
           agotado: readyProduct.agotado
         }]).select();
 
         if (!insertError && insertedData?.[0]) {
-          setProducts((prev) => [{ ...insertedData[0], imagenes: finalUrls }, ...prev]);
+          setProducts((prev) => [insertedData[0], ...prev]);
           return;
+        } else if (insertError) {
+          console.error('Error insertando producto en Supabase:', insertError);
         }
       } catch (err) {
         console.error('Error en Supabase:', err);
@@ -368,28 +571,21 @@ export default function App() {
         const slot = photoSlots[i];
         if (!slot) continue;
 
+        // Subir nueva foto si se seleccionó archivo
         if (slot.file && isSupabaseConfigured && supabase) {
           try {
-            const fileExt = slot.file.name.split('.').pop();
-            const fileName = `${Date.now()}-${i}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-            const { error: uploadError } = await supabase.storage
-              .from('fotos-productos')
-              .upload(fileName, slot.file, { contentType: slot.file.type, upsert: false });
-
-            if (!uploadError) {
-              const { data } = supabase.storage.from('fotos-productos').getPublicUrl(fileName);
-              if (data?.publicUrl) {
-                finalUrls.push(data.publicUrl);
-                continue;
-              }
+            const publicUrl = await uploadProductPhoto(slot.file, i);
+            if (publicUrl) {
+              finalUrls.push(publicUrl);
+              continue;
             }
           } catch (err) {
-            console.error(`Error al subir foto:`, err);
+            console.error(`Error al subir foto de actualización:`, err);
           }
         }
 
-        if (slot.url) finalUrls.push(slot.url);
-        else if (slot.preview) finalUrls.push(slot.preview);
+        if (slot.url && !slot.url.startsWith('blob:')) finalUrls.push(slot.url);
+        else if (slot.preview && !slot.preview.startsWith('blob:')) finalUrls.push(slot.preview);
       }
     }
 
@@ -418,16 +614,18 @@ export default function App() {
           .update({
             nombre: readyProduct.nombre,
             precio: readyProduct.precio,
+            precio_anterior: readyProduct.precio_anterior || null,
             stock: readyProduct.stock,
             categoria: readyProduct.categoria,
             descripcion: readyProduct.descripcion,
             tipo_envio: readyProduct.tipo_envio,
             imagen_url: readyProduct.imagen_url,
+            imagenes: readyProduct.imagenes,
             agotado: readyProduct.agotado
           })
           .eq('id', readyProduct.id);
       } catch (err) {
-        console.error('Error actualizando:', err);
+        console.error('Error actualizando producto en Supabase:', err);
       }
     }
 
@@ -448,7 +646,7 @@ export default function App() {
           .update({ agotado: newAgotado, stock: newStock })
           .eq('id', product.id);
       } catch (err) {
-        console.error('Error actualizando agotado:', err);
+        console.error('Error actualizando agotado en Supabase:', err);
       }
     }
 
@@ -462,16 +660,11 @@ export default function App() {
       try {
         await supabase.from('productos').delete().eq('id', id);
       } catch (err) {
-        console.error('Error borrando:', err);
+        console.error('Error borrando producto en Supabase:', err);
       }
     }
     setProducts((prev) => prev.filter((p) => p.id !== id));
     setCart((prev) => prev.filter((i) => i.id !== id));
-  };
-
-  const handleSaveWhatsAppNumber = (num) => {
-    setWhatsappNumber(num);
-    localStorage.setItem('whatsapp_ventas', num);
   };
 
   // Filtrado de productos
