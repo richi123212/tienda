@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Check, Truck, Shield, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Check, Truck, Shield, MapPin, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const getProductImages = (product) => {
   if (Array.isArray(product?.imagenes) && product.imagenes.length > 0) {
@@ -31,6 +31,15 @@ export default function ProductCard({
 }) {
   const stock = product.stock !== undefined ? parseInt(product.stock, 10) : 5;
   const isAgotado = Boolean(product.agotado) || stock <= 0;
+
+  // Cálculo de descuento
+  const hasDiscount = Boolean(
+    product.precio_anterior && 
+    parseFloat(product.precio_anterior) > parseFloat(product.precio)
+  );
+  const discountPercent = hasDiscount
+    ? Math.round((1 - parseFloat(product.precio) / parseFloat(product.precio_anterior)) * 100)
+    : 0;
 
   // Soporte de 1 a 3 fotos con slider táctil y flechas
   const images = getProductImages(product);
@@ -73,17 +82,27 @@ export default function ProductCard({
     }).format(amount);
   };
 
+  const getShippingLabel = () => {
+    if (product.tipo_envio === 'Local') return 'Zona Local';
+    if (product.tipo_envio === 'Punto') return 'Punto de Entrega';
+    return 'Paquetería Nacional';
+  };
+
   const handleDirectWhatsApp = () => {
     if (isAgotado) return;
     const cleanPhone = (whatsappNumber || '').replace(/[^0-9]/g, '');
-    const message = `Hola, me interesa pedir el siguiente producto de su catálogo:
+    const priceText = hasDiscount 
+      ? `$${product.precio} MXN (Antes: $${product.precio_anterior} MXN - Ahorro del ${discountPercent}%)`
+      : `$${product.precio} MXN`;
+
+    const message = `Hola Universo Bonito, me interesa pedir el siguiente producto de su catálogo:
 
 *${product.nombre}*
 Categoría: ${product.categoria}
-Precio: $${product.precio} MXN
-Tipo de envío: ${product.tipo_envio === 'Local' ? 'Envío Local (Comida)' : 'Envío Nacional por paquetería'}
+Precio: ${priceText}
+Tipo de entrega: ${getShippingLabel()}
 
-¿Tienen disponibilidad para coordinar el pago por transferencia SPEI o efectivo?`;
+¿Tienen disponibilidad para coordinar el pedido y pago por transferencia SPEI o efectivo?`;
 
     const encoded = encodeURIComponent(message);
     window.open(`https://wa.me/${cleanPhone}?text=${encoded}`, '_blank');
@@ -102,6 +121,14 @@ Tipo de envío: ${product.tipo_envio === 'Local' ? 'Envío Local (Comida)' : 'En
           className={`product-image ${isAgotado ? 'img-dimmed' : ''}`}
           loading="lazy"
         />
+
+        {/* Badge de Descuento destacado */}
+        {hasDiscount && !isAgotado && (
+          <div className="discount-badge" title={`Descuento del ${discountPercent}%`}>
+            <Tag size={11} />
+            <span>-{discountPercent}% OFF</span>
+          </div>
+        )}
 
         {/* Controles de carrusel cuando hay de 2 a 3 fotos */}
         {images.length > 1 && (
@@ -154,16 +181,21 @@ Tipo de envío: ${product.tipo_envio === 'Local' ? 'Envío Local (Comida)' : 'En
             <span>Agotado</span>
           </div>
         ) : (
-          <div className={`shipping-badge ${product.tipo_envio === 'Local' ? 'local' : 'nacional'}`}>
+          <div className={`shipping-badge ${product.tipo_envio === 'Local' ? 'local' : product.tipo_envio === 'Punto' ? 'punto' : 'nacional'}`}>
             {product.tipo_envio === 'Local' ? (
               <>
                 <Truck size={12} />
-                <span>Envío Local</span>
+                <span>Zona Local</span>
+              </>
+            ) : product.tipo_envio === 'Punto' ? (
+              <>
+                <MapPin size={12} />
+                <span>Punto de Entrega</span>
               </>
             ) : (
               <>
                 <Shield size={12} />
-                <span>Envío Nacional</span>
+                <span>Paquetería Nacional</span>
               </>
             )}
           </div>
@@ -195,9 +227,15 @@ Tipo de envío: ${product.tipo_envio === 'Local' ? 'Envío Local (Comida)' : 'En
           )}
         </div>
 
+        {/* Fila de Precio con soporte a Descuento */}
         <div className="price-row">
           <span className="price-label">Precio</span>
-          <div>
+          <div className="price-display-box">
+            {hasDiscount && (
+              <span className="product-old-price">
+                {formatPrice(product.precio_anterior)}
+              </span>
+            )}
             <span className="product-price">{formatPrice(product.precio)}</span>
             <span className="product-currency">MXN</span>
           </div>
@@ -209,7 +247,7 @@ Tipo de envío: ${product.tipo_envio === 'Local' ? 'Envío Local (Comida)' : 'En
               className="whatsapp-order-btn btn-disabled"
               disabled
               title="Producto actualmente agotado"
-              style={{ background: '#e5e7eb', color: '#9ca3af', cursor: 'not-allowed' }}
+              style={{ background: '#fce7ef', color: '#9ca3af', cursor: 'not-allowed' }}
             >
               <span>Agotado</span>
             </button>
@@ -231,7 +269,7 @@ Tipo de envío: ${product.tipo_envio === 'Local' ? 'Envío Local (Comida)' : 'En
             onClick={() => onAddToCart(product)}
             disabled={isAgotado}
             style={isAgotado ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
-            title={isAgotado ? "No disponible" : (isInCart ? "Agregado" : "Añadir a bolsa")}
+            title={isAgotado ? "No disponible" : (isInCart ? "Agregado a la bolsa" : "Añadir a la bolsa")}
           >
             {isInCart ? <Check size={18} color="#10b981" /> : <Plus size={18} />}
           </button>

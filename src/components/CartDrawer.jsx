@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Plus, Minus, Trash2, ShoppingBag, AlertCircle } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ShoppingBag, AlertCircle, Truck, Shield, MapPin } from 'lucide-react';
 
 export default function CartDrawer({
   isOpen,
@@ -33,25 +33,32 @@ export default function CartDrawer({
 
   const totalAmount = cart.reduce((sum, item) => sum + item.precio * item.quantity, 0);
 
-  // Comprobar si hay mezcla de envíos locales y nacionales
+  // Comprobar mezcla de modalidades de entrega
   const hasLocal = cart.some(i => i.tipo_envio === 'Local');
   const hasNacional = cart.some(i => i.tipo_envio === 'Nacional');
-  const hasMixedShipping = hasLocal && hasNacional;
+  const hasPunto = cart.some(i => i.tipo_envio === 'Punto');
+  const hasMixedShipping = (hasLocal && hasNacional) || (hasLocal && hasPunto) || (hasNacional && hasPunto);
+
+  const getShippingName = (tipo) => {
+    if (tipo === 'Local') return 'Zona Local (Entrega directa)';
+    if (tipo === 'Punto') return 'Punto de Entrega';
+    return 'Paquetería Nacional';
+  };
 
   const handleCheckoutWhatsApp = () => {
     const cleanPhone = (whatsappNumber || '').replace(/[^0-9]/g, '');
     
     let productLines = cart.map((item, index) => {
-      return `${index + 1}. *${item.nombre}* (x${item.quantity}) - $${item.precio * item.quantity} MXN [${item.tipo_envio === 'Local' ? 'Envío Local' : 'Envío Nacional'}]`;
+      return `${index + 1}. *${item.nombre}* (x${item.quantity}) - $${item.precio * item.quantity} MXN [${getShippingName(item.tipo_envio)}]`;
     }).join('\n');
 
-    let message = `Hola, deseo realizar el siguiente pedido desde el catálogo web:\n\n${productLines}\n\n*TOTAL ESTIMADO: ${formatPrice(totalAmount)} MXN*\n`;
+    let message = `Hola Universo Bonito, deseo realizar el siguiente pedido desde su catálogo web:\n\n${productLines}\n\n*TOTAL ESTIMADO: ${formatPrice(totalAmount)} MXN*\n`;
 
     if (hasMixedShipping) {
-      message += `\nNota: Mi pedido incluye artículos de entrega local (alimentos) y de paquetería nacional.`;
+      message += `\nNota: Mi pedido incluye artículos con distintas modalidades de entrega (comida/botanas de entrega local y/o prendas de paquetería nacional).`;
     }
 
-    message += `\n\n¿Me podrían compartir los datos para pago por transferencia SPEI o confirmar si aplica pago en efectivo contra entrega? Gracias.`;
+    message += `\n\n¿Me podrían compartir los datos para realizar el pago por transferencia SPEI o confirmar si aplica pago en efectivo contra entrega? Muchas gracias.`;
 
     const encoded = encodeURIComponent(message);
     window.open(`https://wa.me/${cleanPhone}?text=${encoded}`, '_blank');
@@ -62,7 +69,7 @@ export default function CartDrawer({
       <div className="cart-drawer" onClick={(e) => e.stopPropagation()}>
         <div className="drawer-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ShoppingBag size={20} color="var(--accent-gold)" />
+            <ShoppingBag size={20} color="var(--accent-pink)" />
             <h2 className="drawer-title">Bolsa de Pedidos</h2>
           </div>
           <button className="drawer-close-btn" onClick={onClose}>
@@ -73,10 +80,10 @@ export default function CartDrawer({
         <div className="drawer-content">
           {cart.length === 0 ? (
             <div className="empty-state">
-              <ShoppingBag size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+              <ShoppingBag size={48} style={{ opacity: 0.25, marginBottom: '16px', color: 'var(--accent-pink)' }} />
               <p>Tu bolsa de pedidos está vacía.</p>
-              <p style={{ fontSize: '0.8rem', marginTop: '6px' }}>
-                Explora el catálogo y añade prendas o platillos.
+              <p style={{ fontSize: '0.82rem', marginTop: '6px', color: 'var(--text-muted)' }}>
+                Explora el catálogo y añade lotes, prendas o botanas.
               </p>
             </div>
           ) : (
@@ -91,19 +98,25 @@ export default function CartDrawer({
                     
                     <div className="cart-item-info">
                       <span className="cart-item-title">{item.nombre}</span>
-                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      
+                      <div className="cart-item-meta-row">
                         <span className="cart-item-category">
                           {item.categoria}
                         </span>
-                        <span style={{ 
-                          fontSize: '0.72rem', 
-                          color: isMaxReached ? '#b45309' : 'var(--text-muted)',
-                          fontWeight: isMaxReached ? 600 : 400
-                        }}>
-                          (Disponibles: {maxStock})
+                        
+                        <span className={`cart-shipping-tag ${item.tipo_envio === 'Local' ? 'local' : item.tipo_envio === 'Punto' ? 'punto' : 'nacional'}`}>
+                          {item.tipo_envio === 'Local' ? 'Zona Local' : item.tipo_envio === 'Punto' ? 'Punto Medio' : 'Paquetería'}
                         </span>
                       </div>
-                      <span className="cart-item-price">{formatPrice(item.precio * item.quantity)}</span>
+
+                      <div className="cart-item-price-row">
+                        <span className="cart-item-price">{formatPrice(item.precio * item.quantity)}</span>
+                        {item.quantity > 1 && (
+                          <span className="cart-item-unit-price">
+                            (${item.precio} c/u)
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="qty-controls">
@@ -148,10 +161,10 @@ export default function CartDrawer({
             </div>
 
             {hasMixedShipping && (
-              <div className="drawer-delivery-note" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <AlertCircle size={16} color="var(--accent-gold)" style={{ flexShrink: 0 }} />
+              <div className="drawer-delivery-note">
+                <AlertCircle size={16} color="var(--accent-pink)" style={{ flexShrink: 0 }} />
                 <span>
-                  Tu pedido combina comida (entrega local) y prendas (paquetería nacional).
+                  Tu pedido combina entrega de zona local (alimentos/botana) y paquetería nacional.
                 </span>
               </div>
             )}
