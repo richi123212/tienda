@@ -13,7 +13,8 @@ import {
   INITIAL_BANNERS, 
   INITIAL_SOCIAL_LINKS, 
   INITIAL_FOOD_SCHEDULE,
-  DEFAULT_WHATSAPP_TEMPLATE
+  DEFAULT_WHATSAPP_TEMPLATE,
+  INITIAL_LOTES_CONFIG
 } from './data/initialProducts';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { Search, AlertCircle, ChevronLeft, ChevronRight, ArrowRight, Truck, ShieldCheck, HeartHandshake } from 'lucide-react';
@@ -61,6 +62,12 @@ export default function App() {
   // 7. Plantilla de Mensaje de Pedido para WhatsApp
   const [whatsappTemplate, setWhatsappTemplate] = useState(() => {
     return localStorage.getItem('whatsapp_mensaje_plantilla') || DEFAULT_WHATSAPP_TEMPLATE;
+  });
+
+  // 8. Configuración Dinámica de Lotes de Ropa
+  const [lotesConfig, setLotesConfig] = useState(() => {
+    const saved = localStorage.getItem('tienda_config_lotes');
+    return saved ? JSON.parse(saved) : INITIAL_LOTES_CONFIG;
   });
 
   const [selectedCategory, setSelectedCategory] = useState('Todas');
@@ -215,6 +222,12 @@ export default function App() {
   const handleSaveWhatsAppTemplate = (newTemplate) => {
     setWhatsappTemplate(newTemplate);
     localStorage.setItem('whatsapp_mensaje_plantilla', newTemplate);
+  };
+
+  // Manejo de Configuración de Lotes de Ropa
+  const handleSaveLotesConfig = (newConfig) => {
+    setLotesConfig(newConfig);
+    localStorage.setItem('tienda_config_lotes', JSON.stringify(newConfig));
   };
 
   // Manejar Carrito con límite estricto de existencias
@@ -539,6 +552,7 @@ export default function App() {
       {(selectedCategory === 'Todas' || selectedCategory === 'Lotes de Ropa') && !searchQuery.trim() && (
         <LotesShowcase 
           whatsappNumber={whatsappNumber}
+          lotesConfig={lotesConfig}
           onSelectCategory={(cat) => {
             setSelectedCategory(cat);
             const el = document.getElementById('catalogo');
@@ -753,6 +767,8 @@ export default function App() {
         onSaveWhatsAppNumber={handleSaveWhatsAppNumber}
         whatsappTemplate={whatsappTemplate}
         onSaveWhatsAppTemplate={handleSaveWhatsAppTemplate}
+        lotesConfig={lotesConfig}
+        onSaveLotesConfig={handleSaveLotesConfig}
       />
 
       {/* Lightbox Modal para ampliar volantes / menús */}

@@ -4,11 +4,11 @@ import {
   Upload, Lock, LogOut, ArrowRight, ArrowLeft, KeyRound,
   Eye, EyeOff, Edit3, AlertOctagon, CheckCircle2, RotateCcw, Package,
   Home, ChevronRight, Camera, Layers, Image as ImageIcon, Link as LinkIcon, 
-  Clock, Tag, Truck, Shield, MapPin, Globe, ExternalLink, MessageSquare
+  Clock, Tag, Truck, Shield, MapPin, Globe, ExternalLink, MessageSquare, Sparkles, HelpCircle
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../supabase';
 import { getProductImages } from './ProductCard';
-import { DEFAULT_WHATSAPP_TEMPLATE } from '../data/initialProducts';
+import { DEFAULT_WHATSAPP_TEMPLATE, INITIAL_LOTES_CONFIG } from '../data/initialProducts';
 
 export default function AdminModal({
   isOpen,
@@ -33,7 +33,9 @@ export default function AdminModal({
   whatsappNumber,
   onSaveWhatsAppNumber,
   whatsappTemplate,
-  onSaveWhatsAppTemplate
+  onSaveWhatsAppTemplate,
+  lotesConfig,
+  onSaveLotesConfig
 }) {
   // Autenticación
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -47,6 +49,8 @@ export default function AdminModal({
       setLoginError('');
       setEditingProduct(null);
       setTempTemplate(whatsappTemplate || DEFAULT_WHATSAPP_TEMPLATE);
+      setTempLotesConfig(lotesConfig || INITIAL_LOTES_CONFIG);
+      setLotesSaved(false);
       setPhotoSlots([
         { file: null, preview: '', url: '' },
         { file: null, preview: '', url: '' },
@@ -135,6 +139,20 @@ export default function AdminModal({
   const [phoneSaved, setPhoneSaved] = useState(false);
   const [tempTemplate, setTempTemplate] = useState(whatsappTemplate || DEFAULT_WHATSAPP_TEMPLATE);
   const [templateSaved, setTemplateSaved] = useState(false);
+
+  // Lotes de Ropa y Guía Dinámica
+  const [tempLotesConfig, setTempLotesConfig] = useState(() => lotesConfig || INITIAL_LOTES_CONFIG);
+  const [lotesSaved, setLotesSaved] = useState(false);
+  const [newTierPieces, setNewTierPieces] = useState('');
+  const [newTierPrice, setNewTierPrice] = useState('');
+  const [newTierDesc, setNewTierDesc] = useState('');
+  const [newTierPopular, setNewTierPopular] = useState(false);
+
+  useEffect(() => {
+    if (lotesConfig) {
+      setTempLotesConfig(lotesConfig);
+    }
+  }, [lotesConfig]);
 
   if (!isOpen) return null;
 
@@ -452,6 +470,121 @@ export default function AdminModal({
     setTimeout(() => setPhoneSaved(false), 2000);
   };
 
+  // Manejadores para Lotes de Ropa
+  const handleSaveLotes = (e) => {
+    if (e) e.preventDefault();
+    if (onSaveLotesConfig) {
+      onSaveLotesConfig(tempLotesConfig);
+    }
+    setLotesSaved(true);
+    setTimeout(() => setLotesSaved(false), 2500);
+  };
+
+  const handleResetLotes = () => {
+    if (confirm('¿Restablecer toda la sección de Lotes de Ropa y su guía a los valores iniciales predeterminados?')) {
+      setTempLotesConfig(INITIAL_LOTES_CONFIG);
+      if (onSaveLotesConfig) {
+        onSaveLotesConfig(INITIAL_LOTES_CONFIG);
+      }
+      setLotesSaved(true);
+      setTimeout(() => setLotesSaved(false), 2500);
+    }
+  };
+
+  const handleAddTier = (e) => {
+    e.preventDefault();
+    const piecesNum = parseInt(newTierPieces, 10);
+    const priceNum = parseFloat(newTierPrice);
+    if (!piecesNum || !priceNum) {
+      alert('Por favor indica el número de piezas y el precio.');
+      return;
+    }
+
+    const newTier = {
+      piezas: piecesNum,
+      precio: priceNum,
+      popular: newTierPopular,
+      desc: newTierDesc.trim() || `Paquete surtido de ${piecesNum} piezas`
+    };
+
+    setTempLotesConfig(prev => {
+      const currentTiers = prev.tiers || [];
+      const updatedTiers = [...currentTiers.filter(t => t.piezas !== piecesNum), newTier].sort((a, b) => a.piezas - b.piezas);
+      return { ...prev, tiers: updatedTiers };
+    });
+
+    setNewTierPieces('');
+    setNewTierPrice('');
+    setNewTierDesc('');
+    setNewTierPopular(false);
+  };
+
+  const handleDeleteTier = (piezas) => {
+    if (confirm(`¿Eliminar el paquete de ${piezas} piezas?`)) {
+      setTempLotesConfig(prev => ({
+        ...prev,
+        tiers: (prev.tiers || []).filter(t => t.piezas !== piezas)
+      }));
+    }
+  };
+
+  const handleTogglePopularTier = (piezas) => {
+    setTempLotesConfig(prev => ({
+      ...prev,
+      tiers: (prev.tiers || []).map(t => ({
+        ...t,
+        popular: t.piezas === piezas ? !t.popular : false
+      }))
+    }));
+  };
+
+  const handleUpdateGuidePoint = (index, field, value) => {
+    setTempLotesConfig(prev => {
+      const puntos = [...(prev.guia?.puntos || INITIAL_LOTES_CONFIG.guia.puntos)];
+      puntos[index] = { ...puntos[index], [field]: value };
+      return {
+        ...prev,
+        guia: {
+          ...prev.guia,
+          puntos
+        }
+      };
+    });
+  };
+
+  const handleAddGuidePoint = () => {
+    setTempLotesConfig(prev => {
+      const puntos = [...(prev.guia?.puntos || INITIAL_LOTES_CONFIG.guia.puntos)];
+      puntos.push({
+        pregunta: 'Nueva Pregunta Frecuente',
+        respuesta: 'Escribe aquí la respuesta o detalle para tus clientes.'
+      });
+      return {
+        ...prev,
+        guia: {
+          ...prev.guia,
+          puntos
+        }
+      };
+    });
+  };
+
+  const handleDeleteGuidePoint = (index) => {
+    if (confirm('¿Eliminar esta pregunta de la guía?')) {
+      setTempLotesConfig(prev => {
+        const puntos = [...(prev.guia?.puntos || INITIAL_LOTES_CONFIG.guia.puntos)];
+        puntos.splice(index, 1);
+        return {
+          ...prev,
+          guia: {
+            ...prev.guia,
+            puntos
+          }
+        };
+      });
+    }
+  };
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
@@ -680,6 +813,14 @@ export default function AdminModal({
               </button>
 
               <button 
+                className={`menu-pill-btn ${activeTab === 'lotes' ? 'active' : ''}`}
+                onClick={() => setActiveTab('lotes')}
+              >
+                <Sparkles size={15} />
+                <span>Lotes</span>
+              </button>
+
+              <button 
                 className={`menu-pill-btn ${activeTab === 'security' ? 'active' : ''}`}
                 onClick={() => setActiveTab('security')}
               >
@@ -852,6 +993,32 @@ export default function AdminModal({
                       </div>
                       <div className="card-action-link">
                         <span>Configurar Celular</span>
+                        <ChevronRight size={16} />
+                      </div>
+                    </div>
+
+                    {/* Tarjeta: Lotes de Ropa y Guía */}
+                    <div 
+                      className="admin-dashboard-card"
+                      onClick={() => setActiveTab('lotes')}
+                      role="button"
+                    >
+                      <div className="card-top-row">
+                        <div className="card-icon-box" style={{ background: '#fdf2f8', color: '#db2777' }}>
+                          <Sparkles size={22} />
+                        </div>
+                        <span className="card-badge highlight">
+                          {(tempLotesConfig.tiers || []).length} Paquetes
+                        </span>
+                      </div>
+                      <div className="card-text-wrap">
+                        <h4 className="card-heading">Lotes de Ropa & Guía de Emprendedoras</h4>
+                        <p className="card-subtext">
+                          Edita paquetes por piezas/precio, marcas, títulos y las respuestas de qué es y cómo funciona.
+                        </p>
+                      </div>
+                      <div className="card-action-link">
+                        <span>Configurar Lotes</span>
                         <ChevronRight size={16} />
                       </div>
                     </div>
@@ -1854,6 +2021,397 @@ export default function AdminModal({
                         </button>
                       </div>
                     </form>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB LOTES: CONFIGURAR LOTES DE ROPA Y GUÍA DE EMPRENDEDORAS */}
+              {activeTab === 'lotes' && (
+                <div>
+                  <div className="section-nav-header">
+                    <button 
+                      type="button" 
+                      className="back-nav-btn"
+                      onClick={() => setActiveTab('menu')}
+                    >
+                      <ArrowLeft size={15} />
+                      <span>Volver al Menú</span>
+                    </button>
+                    <span className="section-badge-info">Lotes de Ropa & Guía</span>
+                  </div>
+
+                  {lotesSaved && (
+                    <div style={{ background: '#dcfce7', color: '#166534', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '0.88rem' }}>
+                      <CheckCircle2 size={18} />
+                      <span>¡Cambios de lotes guardados exitosamente en la tienda!</span>
+                    </div>
+                  )}
+
+                  {/* 1. TEXTOS PRINCIPALES Y MARCAS */}
+                  <div className="settings-card-box">
+                    <div className="settings-card-header">
+                      <div className="settings-icon-pill" style={{ background: '#fdf2f8', color: '#db2777' }}>
+                        <Sparkles size={22} />
+                      </div>
+                      <div>
+                        <h3 className="settings-box-title">
+                          Textos y Marcas del Lote
+                        </h3>
+                        <p className="settings-box-desc">
+                          Personaliza el distintivo, título principal, descripción y marcas comerciales incluidas.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <div className="form-group">
+                        <label className="form-label">Distintivo Superior (Badge)</label>
+                        <input 
+                          type="text" 
+                          className="form-control"
+                          value={tempLotesConfig.badge || ''}
+                          onChange={(e) => setTempLotesConfig({ ...tempLotesConfig, badge: e.target.value })}
+                          placeholder="Ej: Venta Especial para Emprendedoras"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Título Principal</label>
+                        <input 
+                          type="text" 
+                          className="form-control"
+                          value={tempLotesConfig.titulo || ''}
+                          onChange={(e) => setTempLotesConfig({ ...tempLotesConfig, titulo: e.target.value })}
+                          placeholder="Ej: Lotes de Ropa Universo Bonito"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Descripción / Subtítulo</label>
+                        <textarea 
+                          className="form-control"
+                          rows="2"
+                          value={tempLotesConfig.descripcion || ''}
+                          onChange={(e) => setTempLotesConfig({ ...tempLotesConfig, descripcion: e.target.value })}
+                          placeholder="Descripción breve para animar a las emprendedoras..."
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Marcas Incluidas (separadas por coma)</label>
+                        <input 
+                          type="text" 
+                          className="form-control"
+                          value={tempLotesConfig.marcas || ''}
+                          onChange={(e) => setTempLotesConfig({ ...tempLotesConfig, marcas: e.target.value })}
+                          placeholder="Shein, Zara, Forever 21, Old Navy, H&M"
+                        />
+                        <small style={{ color: 'var(--text-muted)', fontSize: '0.74rem', marginTop: '4px', display: 'block' }}>
+                          Aparecerán como etiquetas llamativas en la sección de lotes.
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. PAQUETES Y PRECIOS DE LOTES (TIERS) */}
+                  <div className="settings-card-box" style={{ marginTop: '20px' }}>
+                    <div className="settings-card-header">
+                      <div className="settings-icon-pill" style={{ background: '#fdf2f8', color: '#db2777' }}>
+                        <Tag size={22} />
+                      </div>
+                      <div>
+                        <h3 className="settings-box-title">
+                          Paquetes de Lotes (Tamaño y Precios)
+                        </h3>
+                        <p className="settings-box-desc">
+                          Define los tamaños de bultos (ej. 10, 15, 22, 30, 50, 60, 100 piezas) y sus precios al por mayor.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Lista de tiers actuales */}
+                    <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {(tempLotesConfig.tiers || []).map((tier, idx) => {
+                        const avgPrice = Math.round(tier.precio / (tier.piezas || 1));
+                        return (
+                          <div 
+                            key={tier.piezas || idx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              background: '#fdfbfe',
+                              border: tier.popular ? '2px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
+                              padding: '12px 14px',
+                              borderRadius: '8px',
+                              gap: '12px',
+                              flexWrap: 'wrap'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 200px' }}>
+                              <div style={{ background: '#ffffff', border: '1px solid var(--border-medium)', borderRadius: '6px', padding: '6px 10px', textAlign: 'center', minWidth: '70px' }}>
+                                <strong style={{ fontSize: '1.05rem', color: 'var(--text-primary)', display: 'block' }}>
+                                  {tier.piezas}
+                                </strong>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Piezas</span>
+                              </div>
+
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <strong style={{ fontSize: '1rem', color: 'var(--accent-pink)' }}>
+                                    ${tier.precio} MXN
+                                  </strong>
+                                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                                    (~${avgPrice}/pz)
+                                  </span>
+                                  {tier.popular && (
+                                    <span style={{ background: 'var(--accent-pink)', color: '#fff', fontSize: '0.64rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                      Más vendido
+                                    </span>
+                                  )}
+                                </div>
+                                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                  {tier.desc || 'Paquete surtido'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <button
+                                type="button"
+                                className="action-btn"
+                                style={{ 
+                                  background: tier.popular ? '#fdf2f8' : '#fff',
+                                  borderColor: tier.popular ? 'var(--accent-pink)' : 'var(--border-medium)',
+                                  color: tier.popular ? 'var(--accent-pink)' : 'var(--text-secondary)',
+                                  fontSize: '0.74rem',
+                                  padding: '5px 9px',
+                                  height: 'auto'
+                                }}
+                                onClick={() => handleTogglePopularTier(tier.piezas)}
+                                title="Marcar/desmarcar como paquete más vendido"
+                              >
+                                {tier.popular ? '★ Destacado' : '☆ Marcar Destacado'}
+                              </button>
+
+                              <button
+                                type="button"
+                                className="action-btn delete"
+                                style={{ padding: '6px 8px', height: 'auto' }}
+                                onClick={() => handleDeleteTier(tier.piezas)}
+                                title="Eliminar este paquete"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Formulario rápido para agregar un nuevo tier */}
+                    <form onSubmit={handleAddTier} style={{ marginTop: '16px', background: '#fafaf9', padding: '14px', borderRadius: '8px', border: '1px dashed var(--border-medium)' }}>
+                      <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary)', display: 'block', marginBottom: '10px' }}>
+                        + Agregar Nuevo Tamaño de Paquete
+                      </strong>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>No. de Piezas</label>
+                          <input 
+                            type="number"
+                            className="form-control"
+                            placeholder="Ej: 40"
+                            value={newTierPieces}
+                            onChange={(e) => setNewTierPieces(e.target.value)}
+                            min="1"
+                            style={{ padding: '8px 10px', fontSize: '0.84rem' }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Precio Total (MXN)</label>
+                          <input 
+                            type="number"
+                            className="form-control"
+                            placeholder="Ej: 2800"
+                            value={newTierPrice}
+                            onChange={(e) => setNewTierPrice(e.target.value)}
+                            min="1"
+                            style={{ padding: '8px 10px', fontSize: '0.84rem' }}
+                          />
+                        </div>
+
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Descripción Corta</label>
+                          <input 
+                            type="text"
+                            className="form-control"
+                            placeholder="Ej: Ideal para emprendedoras con venta semanal"
+                            value={newTierDesc}
+                            onChange={(e) => setNewTierDesc(e.target.value)}
+                            style={{ padding: '8px 10px', fontSize: '0.84rem' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox"
+                            checked={newTierPopular}
+                            onChange={(e) => setNewTierPopular(e.target.checked)}
+                          />
+                          <span>Marcar como más vendido</span>
+                        </label>
+
+                        <button 
+                          type="submit" 
+                          className="action-btn"
+                          style={{ background: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '6px 14px', height: 'auto', fontSize: '0.78rem' }}
+                        >
+                          <PlusCircle size={14} />
+                          <span>Agregar Paquete</span>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* 3. GUÍA EXPLICATIVA: ¿QUÉ ES UN LOTE DE ROPA? */}
+                  <div className="settings-card-box" style={{ marginTop: '20px' }}>
+                    <div className="settings-card-header">
+                      <div className="settings-icon-pill" style={{ background: '#fdf2f8', color: '#db2777' }}>
+                        <HelpCircle size={22} />
+                      </div>
+                      <div>
+                        <h3 className="settings-box-title">
+                          Guía para Emprendedoras: ¿Qué es un Lote de Ropa?
+                        </h3>
+                        <p className="settings-box-desc">
+                          Edita la guía explicativa que enseña a tus clientes cómo funciona y la ventaja de ganancias.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', paddingBottom: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox"
+                            checked={tempLotesConfig.guia?.mostrar !== false}
+                            onChange={(e) => setTempLotesConfig({
+                              ...tempLotesConfig,
+                              guia: {
+                                ...tempLotesConfig.guia,
+                                mostrar: e.target.checked
+                              }
+                            })}
+                          />
+                          <span style={{ fontWeight: 600, fontSize: '0.86rem' }}>Mostrar Guía en la tienda</span>
+                        </label>
+
+                        <button 
+                          type="button"
+                          className="action-btn"
+                          style={{ padding: '4px 10px', height: 'auto', fontSize: '0.74rem' }}
+                          onClick={handleAddGuidePoint}
+                        >
+                          <PlusCircle size={13} />
+                          <span>+ Agregar Pregunta</span>
+                        </button>
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: '16px' }}>
+                        <label className="form-label">Título de la Guía</label>
+                        <input 
+                          type="text" 
+                          className="form-control"
+                          value={tempLotesConfig.guia?.titulo || ''}
+                          onChange={(e) => setTempLotesConfig({
+                            ...tempLotesConfig,
+                            guia: {
+                              ...tempLotesConfig.guia,
+                              titulo: e.target.value
+                            }
+                          })}
+                          placeholder="¿Qué es exactamente un Lote de Ropa y cómo funciona?"
+                        />
+                      </div>
+
+                      {/* Lista de Puntos / Preguntas */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        {(tempLotesConfig.guia?.puntos || INITIAL_LOTES_CONFIG.guia.puntos).map((pt, idx) => (
+                          <div 
+                            key={idx}
+                            style={{
+                              background: '#fafafa',
+                              border: '1px solid var(--border-medium)',
+                              borderRadius: '8px',
+                              padding: '14px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--accent-pink)', textTransform: 'uppercase' }}>
+                                Punto #{idx + 1}
+                              </span>
+                              <button 
+                                type="button"
+                                className="action-btn delete"
+                                style={{ padding: '3px 6px', height: 'auto' }}
+                                onClick={() => handleDeleteGuidePoint(idx)}
+                                title="Eliminar este punto"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: '8px' }}>
+                              <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Pregunta</label>
+                              <input 
+                                type="text"
+                                className="form-control"
+                                value={pt.pregunta}
+                                onChange={(e) => handleUpdateGuidePoint(idx, 'pregunta', e.target.value)}
+                                style={{ padding: '8px 10px', fontSize: '0.84rem' }}
+                              />
+                            </div>
+
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Respuesta Explicativa</label>
+                              <textarea 
+                                className="form-control"
+                                rows="3"
+                                value={pt.respuesta}
+                                onChange={(e) => handleUpdateGuidePoint(idx, 'respuesta', e.target.value)}
+                                style={{ padding: '8px 10px', fontSize: '0.84rem', lineHeight: '1.4' }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4. BOTONES DE GUARDAR Y RESTABLECER */}
+                  <div style={{ marginTop: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <button 
+                      type="button" 
+                      className="submit-btn" 
+                      style={{ flex: 1, padding: '14px' }}
+                      onClick={handleSaveLotes}
+                    >
+                      <Check size={18} />
+                      <span>{lotesSaved ? '¡Configuración Guardada!' : 'Guardar Todos los Cambios de Lotes'}</span>
+                    </button>
+
+                    <button 
+                      type="button" 
+                      className="action-btn"
+                      onClick={handleResetLotes}
+                      title="Restablecer toda la sección de lotes al contenido original"
+                    >
+                      <RotateCcw size={15} />
+                      <span>Restablecer Predeterminados</span>
+                    </button>
                   </div>
                 </div>
               )}

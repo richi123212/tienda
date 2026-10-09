@@ -1,24 +1,26 @@
 import React, { useState } from 'react';
-import { Sparkles, Check, Truck, ShieldCheck, HeartHandshake, Phone, ArrowRight, ShoppingBag } from 'lucide-react';
-
-const LOTE_TIERS = [
-  { piezas: 10, precio: 850, ahorro: '15%', popular: false, desc: 'Ideal para iniciar con poca inversión' },
-  { piezas: 15, precio: 1200, ahorro: '18%', popular: false, desc: 'Variedad de prendas esenciales' },
-  { piezas: 22, precio: 1650, ahorro: '20%', popular: true, desc: 'El más vendido para boutiques' },
-  { piezas: 30, precio: 2150, ahorro: '22%', popular: false, desc: 'Surtido amplio de temporada' },
-  { piezas: 50, precio: 3450, ahorro: '25%', popular: false, desc: 'Precio mayorista con alto margen' },
-  { piezas: 60, precio: 4100, ahorro: '26%', popular: false, desc: 'Para tiendas con rotación continua' },
-  { piezas: 100, precio: 6500, ahorro: '30%', popular: false, desc: 'Mega lote con máximo rendimiento' }
-];
-
-const BRANDS = ['Shein', 'Zara', 'Forever 21', 'Old Navy', 'H&M'];
+import { Check, Truck, ShieldCheck, HeartHandshake, Phone, ShoppingBag, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { INITIAL_LOTES_CONFIG } from '../data/initialProducts';
 
 export default function LotesShowcase({ 
   whatsappNumber, 
   onSelectCategory,
-  onAddToCartDirect 
+  onAddToCartDirect,
+  lotesConfig = INITIAL_LOTES_CONFIG
 }) {
-  const [selectedTier, setSelectedTier] = useState(LOTE_TIERS[2]); // 22 piezas por defecto
+  const config = lotesConfig || INITIAL_LOTES_CONFIG;
+  const tiers = config.tiers && config.tiers.length > 0 ? config.tiers : INITIAL_LOTES_CONFIG.tiers;
+  const perks = config.perks && config.perks.length > 0 ? config.perks : INITIAL_LOTES_CONFIG.perks;
+  const marcasList = (config.marcas || 'Shein, Zara, Forever 21, Old Navy, H&M')
+    .split(',')
+    .map(m => m.trim())
+    .filter(Boolean);
+
+  const [selectedTier, setSelectedTier] = useState(() => {
+    return tiers.find(t => t.popular) || tiers[0] || { piezas: 22, precio: 1650 };
+  });
+
+  const [isGuideOpen, setIsGuideOpen] = useState(true);
 
   const handleOrderLoteWhatsApp = (tier) => {
     const cleanPhone = (whatsappNumber || '').replace(/[^0-9]/g, '');
@@ -26,11 +28,10 @@ export default function LotesShowcase({
 
 *Lote de ${tier.piezas} Piezas*
 Precio: $${tier.precio} MXN
-Marcas: Shein, Zara, Forever 21, Old Navy, H&M
-Tallas: XS, S, M, L, XL
+Marcas: ${config.marcas || 'Shein, Zara, Forever 21, Old Navy, H&M'}
 Modalidad: Envío Nacional por paquetería
 
-¿Me podrían brindar información de disponibilidad y datos de pago por transferencia? Gracias.`;
+¿Me podrían brindar información de disponibilidad y datos de pago por transferencia? Muchas gracias.`;
 
     const encoded = encodeURIComponent(message);
     window.open(`https://wa.me/${cleanPhone}?text=${encoded}`, '_blank');
@@ -45,7 +46,7 @@ Modalidad: Envío Nacional por paquetería
         categoria: 'Lotes de Ropa',
         tipo_envio: 'Nacional',
         stock: 10,
-        descripcion: `Paquete de ${tier.piezas} prendas de dama al azar en tallas XS a XL de marcas Shein, Zara, Forever 21, H&M, Old Navy.`,
+        descripcion: `Paquete de ${tier.piezas} prendas de dama al azar en tallas XS a XL de marcas ${config.marcas || 'Shein, Zara, Forever 21, H&M, Old Navy'}.`,
         imagen_url: '/banners/banner_lotes.jpg'
       });
     }
@@ -55,62 +56,45 @@ Modalidad: Envío Nacional por paquetería
     <section className="lotes-feature-section">
       <div className="lotes-feature-header">
         <div className="lotes-badge">
-          <Sparkles size={14} />
-          <span>Venta Especial para Emprendedoras</span>
+          <span>{config.badge || 'Venta Especial para Emprendedoras'}</span>
         </div>
         <h2 className="lotes-main-title">
-          Lotes de Ropa Universo Bonito
+          {config.titulo || 'Lotes de Ropa Universo Bonito'}
         </h2>
         <p className="lotes-main-desc">
-          Arma tu propio negocio con lotes surtidos de las mejores marcas comerciales.
-          Prendas nuevas con alta demanda y excelente retorno de inversión.
+          {config.descripcion || 'Arma tu propio negocio con lotes surtidos de las mejores marcas comerciales.'}
         </p>
 
         {/* Marcas incluidas */}
-        <div className="lotes-brands-row">
-          <span className="brands-title">Marcas incluidas:</span>
-          <div className="brands-tags">
-            {BRANDS.map((b) => (
-              <span key={b} className="brand-tag-pill">{b}</span>
-            ))}
-            <span className="brand-tag-pill more">+ entre otras</span>
+        {marcasList.length > 0 && (
+          <div className="lotes-brands-row">
+            <span className="brands-title">Marcas incluidas:</span>
+            <div className="brands-tags">
+              {marcasList.map((b) => (
+                <span key={b} className="brand-tag-pill">{b}</span>
+              ))}
+              <span className="brand-tag-pill more">+ entre otras</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Características clave en pills */}
+      {/* Características clave / Beneficios */}
       <div className="lotes-perks-grid">
-        <div className="lote-perk-card">
-          <div className="perk-icon"><ShieldCheck size={20} /></div>
-          <div>
-            <strong>Tallas XS, S, M, L y XL</strong>
-            <p>Variedad de medidas para abarcar todo tipo de clientes.</p>
+        {perks.map((p, idx) => (
+          <div key={idx} className="lote-perk-card">
+            <div className="perk-icon">
+              {idx === 0 ? <ShieldCheck size={20} /> :
+               idx === 1 ? <Check size={20} /> :
+               idx === 2 ? <HeartHandshake size={20} /> :
+               <Truck size={20} />}
+            </div>
+            <div>
+              <strong>{p.titulo}</strong>
+              <p>{p.desc}</p>
+            </div>
           </div>
-        </div>
-
-        <div className="lote-perk-card">
-          <div className="perk-icon"><Sparkles size={20} /></div>
-          <div>
-            <strong>Solo Ropa de Dama</strong>
-            <p>Vestidos, tops, blusas, faldas y conjuntos de temporada.</p>
-          </div>
-        </div>
-
-        <div className="lote-perk-card">
-          <div className="perk-icon"><HeartHandshake size={20} /></div>
-          <div>
-            <strong>Cambios en tu 2da compra</strong>
-            <p>Garantía de respaldo para que tu dinero siempre rinda.</p>
-          </div>
-        </div>
-
-        <div className="lote-perk-card">
-          <div className="perk-icon"><Truck size={20} /></div>
-          <div>
-            <strong>Envíos Nacionales</strong>
-            <p>Paquetería rápida y segura a cualquier rincón de México.</p>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Selector interactivo de Lotes */}
@@ -118,7 +102,7 @@ Modalidad: Envío Nacional por paquetería
         <h3 className="selector-title">Elige el tamaño de tu lote:</h3>
         
         <div className="lote-tiers-grid">
-          {LOTE_TIERS.map((tier) => {
+          {tiers.map((tier) => {
             const isSelected = selectedTier.piezas === tier.piezas;
             return (
               <div 
@@ -130,7 +114,7 @@ Modalidad: Envío Nacional por paquetería
                 <div className="tier-pieces">{tier.piezas} piezas</div>
                 <div className="tier-price">${tier.precio} MXN</div>
                 <div className="tier-avg">Aprox. ${Math.round(tier.precio / tier.piezas)} por prenda</div>
-                <p className="tier-desc">{tier.desc}</p>
+                <p className="tier-desc">{tier.desc || 'Paquete surtido de temporada'}</p>
                 <div className="tier-check-mark">
                   {isSelected && <Check size={14} />}
                 </div>
@@ -173,6 +157,42 @@ Modalidad: Envío Nacional por paquetería
           </div>
         </div>
       </div>
+
+      {/* Guía Explicativa: ¿Qué es exactamente un Lote de Ropa? */}
+      {config.guia?.mostrar !== false && (
+        <div className="lotes-guide-container">
+          <div 
+            className="lotes-guide-header"
+            onClick={() => setIsGuideOpen(!isGuideOpen)}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="guide-icon-pill">
+                <HelpCircle size={18} />
+              </div>
+              <h3 className="guide-heading">
+                {config.guia?.titulo || '¿Qué es exactamente un Lote de Ropa y cómo funciona?'}
+              </h3>
+            </div>
+            <button type="button" className="guide-toggle-btn">
+              {isGuideOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            </button>
+          </div>
+
+          {isGuideOpen && (
+            <div className="lotes-guide-body">
+              <div className="guide-cards-grid">
+                {(config.guia?.puntos || INITIAL_LOTES_CONFIG.guia.puntos).map((item, idx) => (
+                  <div key={idx} className="guide-point-card">
+                    <span className="point-number">{idx + 1}</span>
+                    <h4 className="point-question">{item.pregunta}</h4>
+                    <p className="point-answer">{item.respuesta}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }

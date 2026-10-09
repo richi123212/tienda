@@ -21,6 +21,46 @@ export const DEFAULT_WHATSAPP_TEMPLATE = `Hola Universo Bonito, deseo realizar e
 
 ¿Me podrían compartir los datos para realizar el pago por transferencia SPEI o confirmar si aplica pago en efectivo contra entrega? Muchas gracias.`;
 
+export const INITIAL_LOTES_CONFIG = {
+  badge: 'Venta Especial para Emprendedoras',
+  titulo: 'Lotes de Ropa Universo Bonito',
+  descripcion: 'Arma tu propio negocio con lotes surtidos de las mejores marcas comerciales. Prendas nuevas con alta demanda y excelente retorno de inversión.',
+  marcas: 'Shein, Zara, Forever 21, Old Navy, H&M',
+  perks: [
+    { titulo: 'Tallas XS, S, M, L y XL', desc: 'Variedad de medidas para abarcar todo tipo de clientas.' },
+    { titulo: 'Solo Ropa de Dama', desc: 'Vestidos, tops, blusas, faldas y conjuntos de temporada.' },
+    { titulo: 'Cambios en tu 2da compra', desc: 'Garantía de respaldo para que tu inversión siempre rinda.' },
+    { titulo: 'Envíos Nacionales', desc: 'Paquetería rápida y segura a cualquier rincón de México.' }
+  ],
+  tiers: [
+    { piezas: 10, precio: 850, popular: false, desc: 'Ideal para iniciar con poca inversión' },
+    { piezas: 15, precio: 1200, popular: false, desc: 'Variedad de prendas esenciales' },
+    { piezas: 22, precio: 1650, popular: true, desc: 'El más vendido para boutiques' },
+    { piezas: 30, precio: 2150, popular: false, desc: 'Surtido amplio de temporada' },
+    { piezas: 50, precio: 3450, popular: false, desc: 'Precio mayorista con alto margen' },
+    { piezas: 60, precio: 4100, popular: false, desc: 'Para tiendas con rotación continua' },
+    { piezas: 100, precio: 6500, popular: false, desc: 'Mega lote con máximo rendimiento' }
+  ],
+  guia: {
+    mostrar: true,
+    titulo: '¿Qué es exactamente un Lote de Ropa y cómo funciona?',
+    puntos: [
+      {
+        pregunta: '¿Qué es un lote de ropa?',
+        respuesta: 'Un lote de ropa es un paquete o bulto de prendas al por mayor (paquetes de 10, 15, 22, 30, 50, 60 o 100 piezas) surtidas al azar con ropa nueva de dama de marcas reconocidas como Shein, Zara, Forever 21, H&M y Old Navy en tallas XS a XL.'
+      },
+      {
+        pregunta: '¿A quién va dirigido?',
+        respuesta: 'Principalmente a emprendedoras y personas que quieren iniciar su propio negocio vendiendo ropa en su colonia, tienda física, boutique o por redes sociales (Facebook, TikTok, WhatsApp).'
+      },
+      {
+        pregunta: '¿Cómo funciona y cuál es la ventaja de ganancias?',
+        respuesta: 'Al comprar por volumen, el costo por prenda es mucho más bajo (aprox. $80 a $85 pesos por pieza). Esto te permite revender cada prenda a precio normal de boutique ($200 a $350 pesos) y obtener un excelente margen de ganancia libre.'
+      }
+    ]
+  }
+};
+
 export const INITIAL_SOCIAL_LINKS = [
   {
     id: 'link-fb',
