@@ -12,6 +12,15 @@ export const INITIAL_FOOD_SCHEDULE = {
   nota: 'Servicio a domicilio • Aceptamos transferencia'
 };
 
+export const DEFAULT_WHATSAPP_TEMPLATE = `Hola Universo Bonito, deseo realizar el siguiente pedido desde su catálogo web:
+
+{PRODUCTOS}
+
+*TOTAL ESTIMADO: {TOTAL}*
+{NOTAS_ENVIO}
+
+¿Me podrían compartir los datos para realizar el pago por transferencia SPEI o confirmar si aplica pago en efectivo contra entrega? Muchas gracias.`;
+
 export const INITIAL_SOCIAL_LINKS = [
   {
     id: 'link-fb',

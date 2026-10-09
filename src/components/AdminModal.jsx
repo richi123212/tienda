@@ -4,10 +4,11 @@ import {
   Upload, Lock, LogOut, ArrowRight, ArrowLeft, KeyRound,
   Eye, EyeOff, Edit3, AlertOctagon, CheckCircle2, RotateCcw, Package,
   Home, ChevronRight, Camera, Layers, Image as ImageIcon, Link as LinkIcon, 
-  Clock, Tag, Truck, Shield, MapPin, Globe, ExternalLink, Sparkles
+  Clock, Tag, Truck, Shield, MapPin, Globe, ExternalLink, MessageSquare
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../supabase';
 import { getProductImages } from './ProductCard';
+import { DEFAULT_WHATSAPP_TEMPLATE } from '../data/initialProducts';
 
 export default function AdminModal({
   isOpen,
@@ -30,7 +31,9 @@ export default function AdminModal({
   foodSchedule,
   onUpdateFoodSchedule,
   whatsappNumber,
-  onSaveWhatsAppNumber
+  onSaveWhatsAppNumber,
+  whatsappTemplate,
+  onSaveWhatsAppTemplate
 }) {
   // Autenticación
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -43,6 +46,7 @@ export default function AdminModal({
       setPasswordInput('');
       setLoginError('');
       setEditingProduct(null);
+      setTempTemplate(whatsappTemplate || DEFAULT_WHATSAPP_TEMPLATE);
       setPhotoSlots([
         { file: null, preview: '', url: '' },
         { file: null, preview: '', url: '' },
@@ -129,6 +133,8 @@ export default function AdminModal({
   // WhatsApp
   const [tempPhone, setTempPhone] = useState(whatsappNumber);
   const [phoneSaved, setPhoneSaved] = useState(false);
+  const [tempTemplate, setTempTemplate] = useState(whatsappTemplate || DEFAULT_WHATSAPP_TEMPLATE);
+  const [templateSaved, setTemplateSaved] = useState(false);
 
   if (!isOpen) return null;
 
@@ -454,7 +460,7 @@ export default function AdminModal({
         <div className="admin-header">
           <div className="admin-title-wrap">
             <div className="admin-icon-pill">
-              <Sparkles size={17} />
+              <Lock size={17} />
             </div>
             <div>
               <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.35rem', lineHeight: 1.1 }}>
@@ -1742,6 +1748,111 @@ export default function AdminModal({
                         <Check size={17} />
                         <span>{phoneSaved ? '¡Número guardado correctamente!' : 'Guardar Número de WhatsApp'}</span>
                       </button>
+                    </form>
+                  </div>
+
+                  {/* SECCIÓN EDITAR PLANTILLA DE MENSAJE DE WHATSAPP */}
+                  <div className="settings-card-box" style={{ marginTop: '20px' }}>
+                    <div className="settings-card-header">
+                      <div className="settings-icon-pill whatsapp-icon-pill">
+                        <MessageSquare size={22} />
+                      </div>
+                      <div>
+                        <h3 className="settings-box-title">
+                          Mensaje que Recibirás por WhatsApp
+                        </h3>
+                        <p className="settings-box-desc">
+                          Edita la redacción exacta del mensaje que se abrirá en WhatsApp cuando tus clientes hagan un pedido.
+                        </p>
+                      </div>
+                    </div>
+
+                    <form 
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        onSaveWhatsAppTemplate(tempTemplate);
+                        setTemplateSaved(true);
+                        setTimeout(() => setTemplateSaved(false), 2000);
+                      }} 
+                      style={{ marginTop: '18px' }}
+                    >
+                      <div className="form-group" style={{ marginBottom: '14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <label className="form-label" style={{ margin: 0 }}>Texto del Mensaje</label>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                            Personalizable
+                          </span>
+                        </div>
+                        <textarea 
+                          className="form-control"
+                          rows="8"
+                          value={tempTemplate}
+                          onChange={(e) => setTempTemplate(e.target.value)}
+                          style={{ fontFamily: 'monospace', fontSize: '0.86rem', lineHeight: '1.5', padding: '12px' }}
+                          required
+                        />
+                      </div>
+
+                      {/* Etiquetas automáticas */}
+                      <div style={{ marginBottom: '16px', background: '#fdf2f8', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                        <strong style={{ fontSize: '0.76rem', color: 'var(--accent-pink)', display: 'block', marginBottom: '4px' }}>
+                          Etiquetas automáticas (se reemplazan con los datos del pedido):
+                        </strong>
+                        <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                          Toca una etiqueta para insertarla en el mensaje:
+                        </p>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          <button 
+                            type="button"
+                            className="action-btn"
+                            style={{ padding: '4px 10px', height: 'auto', fontSize: '0.74rem' }}
+                            onClick={() => setTempTemplate(prev => prev + '\n{PRODUCTOS}')}
+                          >
+                            + {'{PRODUCTOS}'} (Lista de artículos)
+                          </button>
+                          <button 
+                            type="button"
+                            className="action-btn"
+                            style={{ padding: '4px 10px', height: 'auto', fontSize: '0.74rem' }}
+                            onClick={() => setTempTemplate(prev => prev + ' {TOTAL}')}
+                          >
+                            + {'{TOTAL}'} (Monto total en pesos)
+                          </button>
+                          <button 
+                            type="button"
+                            className="action-btn"
+                            style={{ padding: '4px 10px', height: 'auto', fontSize: '0.74rem' }}
+                            onClick={() => setTempTemplate(prev => prev + '\n{NOTAS_ENVIO}')}
+                          >
+                            + {'{NOTAS_ENVIO}'} (Aviso de envío local/nacional)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Botones de guardar y restaurar */}
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <button type="submit" className="submit-btn" style={{ flex: 1, padding: '12px' }}>
+                          <Check size={17} />
+                          <span>{templateSaved ? '¡Mensaje guardado correctamente!' : 'Guardar Mensaje de WhatsApp'}</span>
+                        </button>
+
+                        <button 
+                          type="button" 
+                          className="action-btn"
+                          onClick={() => {
+                            if (confirm('¿Restablecer el mensaje al texto predeterminado?')) {
+                              setTempTemplate(DEFAULT_WHATSAPP_TEMPLATE);
+                              onSaveWhatsAppTemplate(DEFAULT_WHATSAPP_TEMPLATE);
+                              setTemplateSaved(true);
+                              setTimeout(() => setTemplateSaved(false), 2000);
+                            }
+                          }}
+                          title="Restablecer plantilla al original"
+                        >
+                          <RotateCcw size={14} />
+                          <span>Restablecer Mensaje Predeterminado</span>
+                        </button>
+                      </div>
                     </form>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Phone, Clock, Heart } from 'lucide-react';
+import { Phone, Clock, Heart } from 'lucide-react';
 
 export default function Footer({ 
   categories = [], 
@@ -20,9 +20,6 @@ export default function Footer({
             onClick={onOpenAdmin}
             title="Panel de Administración"
           >
-            <div className="brand-logo-icon small">
-              <Sparkles size={15} />
-            </div>
             <span className="footer-brand-text">Universo Bonito</span>
           </div>
 

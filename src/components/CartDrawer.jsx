@@ -6,6 +6,7 @@ export default function CartDrawer({
   onClose,
   cart,
   whatsappNumber,
+  whatsappTemplate,
   onUpdateQty,
   onRemoveItem,
   onClearCart
@@ -52,13 +53,33 @@ export default function CartDrawer({
       return `${index + 1}. *${item.nombre}* (x${item.quantity}) - $${item.precio * item.quantity} MXN [${getShippingName(item.tipo_envio)}]`;
     }).join('\n');
 
-    let message = `Hola Universo Bonito, deseo realizar el siguiente pedido desde su catálogo web:\n\n${productLines}\n\n*TOTAL ESTIMADO: ${formatPrice(totalAmount)} MXN*\n`;
-
+    let deliveryNote = '';
     if (hasMixedShipping) {
-      message += `\nNota: Mi pedido incluye artículos con distintas modalidades de entrega (comida/botanas de entrega local y/o prendas de paquetería nacional).`;
+      deliveryNote = `\nNota: Mi pedido incluye artículos con distintas modalidades de entrega (comida/botanas de entrega local y/o prendas de paquetería nacional).`;
     }
 
-    message += `\n\n¿Me podrían compartir los datos para realizar el pago por transferencia SPEI o confirmar si aplica pago en efectivo contra entrega? Muchas gracias.`;
+    const defaultTemplate = `Hola Universo Bonito, deseo realizar el siguiente pedido desde su catálogo web:\n\n{PRODUCTOS}\n\n*TOTAL ESTIMADO: {TOTAL}*\n{NOTAS_ENVIO}\n\n¿Me podrían compartir los datos para realizar el pago por transferencia SPEI o confirmar si aplica pago en efectivo contra entrega? Muchas gracias.`;
+
+    let templateToUse = whatsappTemplate || defaultTemplate;
+    let message = templateToUse;
+
+    if (message.includes('{PRODUCTOS}')) {
+      message = message.replace('{PRODUCTOS}', productLines);
+    } else {
+      message = `${message}\n\n${productLines}`;
+    }
+
+    if (message.includes('{TOTAL}')) {
+      message = message.replace('{TOTAL}', `${formatPrice(totalAmount)} MXN`);
+    } else {
+      message = `${message}\n\n*TOTAL: ${formatPrice(totalAmount)} MXN*`;
+    }
+
+    if (message.includes('{NOTAS_ENVIO}')) {
+      message = message.replace('{NOTAS_ENVIO}', deliveryNote);
+    } else if (deliveryNote) {
+      message = `${message}\n${deliveryNote}`;
+    }
 
     const encoded = encodeURIComponent(message);
     window.open(`https://wa.me/${cleanPhone}?text=${encoded}`, '_blank');

@@ -12,10 +12,11 @@ import {
   INITIAL_CATEGORIES, 
   INITIAL_BANNERS, 
   INITIAL_SOCIAL_LINKS, 
-  INITIAL_FOOD_SCHEDULE 
+  INITIAL_FOOD_SCHEDULE,
+  DEFAULT_WHATSAPP_TEMPLATE
 } from './data/initialProducts';
 import { supabase, isSupabaseConfigured } from './supabase';
-import { Search, AlertCircle, ChevronLeft, ChevronRight, ArrowRight, Sparkles, Truck, ShieldCheck, HeartHandshake } from 'lucide-react';
+import { Search, AlertCircle, ChevronLeft, ChevronRight, ArrowRight, Truck, ShieldCheck, HeartHandshake } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 6;
 
@@ -55,6 +56,11 @@ export default function App() {
     return localStorage.getItem('whatsapp_ventas') || 
            import.meta.env.VITE_WHATSAPP_NUMBER || 
            '525620068886';
+  });
+
+  // 7. Plantilla de Mensaje de Pedido para WhatsApp
+  const [whatsappTemplate, setWhatsappTemplate] = useState(() => {
+    return localStorage.getItem('whatsapp_mensaje_plantilla') || DEFAULT_WHATSAPP_TEMPLATE;
   });
 
   const [selectedCategory, setSelectedCategory] = useState('Todas');
@@ -203,6 +209,12 @@ export default function App() {
   // Manejo de Horarios
   const handleUpdateFoodSchedule = (updatedSchedule) => {
     setFoodSchedule(updatedSchedule);
+  };
+
+  // Manejo de Plantilla de Mensaje de WhatsApp
+  const handleSaveWhatsAppTemplate = (newTemplate) => {
+    setWhatsappTemplate(newTemplate);
+    localStorage.setItem('whatsapp_mensaje_plantilla', newTemplate);
   };
 
   // Manejar Carrito con límite estricto de existencias
@@ -496,7 +508,6 @@ export default function App() {
       {/* Hero Section Universo Bonito */}
       <section className="hero-banner">
         <div className="hero-sparkle-pill">
-          <Sparkles size={14} />
           <span>Colección & Sabor Exclusivo</span>
         </div>
         <h2 className="hero-title">
@@ -711,6 +722,7 @@ export default function App() {
         onClose={() => setIsCartOpen(false)}
         cart={cart}
         whatsappNumber={whatsappNumber}
+        whatsappTemplate={whatsappTemplate}
         onUpdateQty={handleUpdateQty}
         onRemoveItem={handleRemoveFromCart}
         onClearCart={handleClearCart}
@@ -739,6 +751,8 @@ export default function App() {
         onUpdateFoodSchedule={handleUpdateFoodSchedule}
         whatsappNumber={whatsappNumber}
         onSaveWhatsAppNumber={handleSaveWhatsAppNumber}
+        whatsappTemplate={whatsappTemplate}
+        onSaveWhatsAppTemplate={handleSaveWhatsAppTemplate}
       />
 
       {/* Lightbox Modal para ampliar volantes / menús */}

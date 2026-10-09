@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingBag, Clock, Sparkles } from 'lucide-react';
+import { ShoppingBag, Clock } from 'lucide-react';
 
 export default function Header({ 
   cartCount, 
@@ -50,9 +50,6 @@ export default function Header({
           onClick={onOpenAdmin}
           title="Administración de Universo Bonito"
         >
-          <div className="brand-logo-icon">
-            <Sparkles size={18} />
-          </div>
           <div className="brand-titles-group">
             <span className="brand-title">Universo Bonito</span>
             <span className="brand-tagline">Moda, Lotes y Botanas</span>
